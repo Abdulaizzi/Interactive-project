@@ -1016,7 +1016,9 @@
         el.triageTitle.textContent = info.title;
         el.triageSummary.textContent = info.summary;
         el.repConfidence.textContent = state.liveAiResult ? state.liveAiResult.confidence : profile.confidence;
-        el.repEngineBadge.textContent = state.liveAiResult ? dict.engineLive : dict.engineSim;
+        el.repEngineBadge.textContent = state.liveAiResult
+          ? `${dict.engineLive} [${state.liveAiResult.rawLabel}]`
+          : dict.engineSim;
         el.repEngineBadge.className = state.liveAiResult
           ? 'text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-teal-100 border border-teal-400 text-teal-900'
           : 'text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-white/80 border border-slate-300 text-slate-700';
@@ -1149,9 +1151,9 @@
       });
 
       function mapHfLabelToSeverity(label) {
-        const l = String(label || '').toLowerCase();
-        if (l.includes('no') || l === '0' || l.includes('normal')) return 'normal';
-        if (l.includes('severe') || l.includes('proliferat') || l === '3' || l === '4') return 'urgent';
+        const l = String(label || '').toLowerCase().trim();
+        if (l.includes('no') || l.includes('normal') || l === '0' || l === 'label_0' || /\b0\b/.test(l)) return 'normal';
+        if (l.includes('severe') || l.includes('proliferat') || l === '3' || l === '4' || l === 'label_3' || l === 'label_4') return 'urgent';
         return 'moderate';
       }
 
@@ -1213,7 +1215,8 @@
           } catch (err) {
             state.liveAiResult = null;
             el.scanOverlay.classList.add('hidden');
-            showToast(i18n[state.lang].toastLiveFallback);
+            const reason = err && err.message ? ` (${err.message})` : '';
+            showToast(i18n[state.lang].toastLiveFallback + reason);
             switchTab('report');
             return;
           }
