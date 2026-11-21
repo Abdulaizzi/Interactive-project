@@ -156,6 +156,16 @@
               </label>
               <input id="fileUpload" type="file" accept="image/*" class="hidden">
             </div>
+
+            <!-- Live Hugging Face AI Integration -->
+            <div class="pt-3 border-t border-slate-100 space-y-2.5">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-[#0A4D68]" data-i18n="hfTitle">ربط الذكاء الاصطناعي الحقيقي (Hugging Face)</span>
+                <span id="hfStatusBadge" class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600" data-i18n="hfModeSim">وضع المحاكاة</span>
+              </div>
+              <input id="inputHfToken" type="password" placeholder="hf_xxxxxxxxxxxxxxxxxxxx" autocomplete="off" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-teal-500">
+              <p class="text-[11px] text-slate-500 leading-relaxed" data-i18n="hfHint">أدخل مفتاح Hugging Face (يُحفظ على جهازك فقط) وارفع صورة شبكية حقيقية لتشغيل التصنيف الفعلي عبر نموذج ViT الطبي.</p>
+            </div>
           </div>
         </div>
 
@@ -271,9 +281,12 @@
               <span id="triageTag" class="text-xs font-bold uppercase px-3 py-1 rounded-full bg-amber-200 text-amber-900">
                 متابعة مجدولة
               </span>
-              <span id="repPatientMeta" class="text-xs font-semibold text-slate-600">
-                PHC-2026-041 · 54 سنة · سكري 11 سنة
-              </span>
+              <div class="flex flex-wrap items-center gap-2">
+                <span id="repEngineBadge" class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-white/80 border border-slate-300 text-slate-700">محاكاة سريرية</span>
+                <span id="repPatientMeta" class="text-xs font-semibold text-slate-600">
+                  PHC-2026-041 · 54 سنة · سكري 11 سنة
+                </span>
+              </div>
             </div>
             <h2 id="triageTitle" class="text-xl font-bold text-slate-900">اشتباه اعتلال شبكية سكري متوسط (Moderate NPDR)</h2>
             <p id="triageSummary" class="text-sm text-slate-700 leading-relaxed">
@@ -424,6 +437,9 @@
         activeTab: 'scan',
         selectedCase: 'moderate', // 'normal' | 'moderate' | 'urgent'
         uploadedImage: null,
+        uploadedFile: null,
+        hfToken: '',
+        liveAiResult: null,
         focus: 28, // sweet spot 44..56
         polarizer: false,
         irMode: true,
@@ -513,7 +529,15 @@
           toastSaved: 'تم حفظ الفحص في سجل العيادة وتحديث الإحصائيات.',
           toastCopied: 'تم نسخ ملخص التقرير الطبي بنجاح.',
           toastUpload: 'تم تحميل صورة الشبكية بنجاح — يمكنك الآن التحليل.',
-          toastAligned: 'تمت المحاذاة البؤرية وتفعيل الاستقطاب بنجاح.'
+          toastAligned: 'تمت المحاذاة البؤرية وتفعيل الاستقطاب بنجاح.',
+          hfTitle: 'ربط الذكاء الاصطناعي الحقيقي (Hugging Face)',
+          hfModeSim: 'وضع المحاكاة',
+          hfModeLive: 'AI حقيقي جاهز',
+          hfHint: 'أدخل مفتاح Hugging Face (يُحفظ على جهازك فقط) وارفع صورة شبكية حقيقية لتشغيل التصنيف الفعلي عبر نموذج ViT الطبي.',
+          engineLive: 'تحليل AI حقيقي (Hugging Face)',
+          engineSim: 'وضع المحاكاة السريرية',
+          toastLiveOk: 'تم تحليل صورة الشبكية عبر الذكاء الاصطناعي الحقيقي بنجاح.',
+          toastLiveFallback: 'تعذّر الاتصال اللحظي بالنموذج (أو جارٍ تهيئته)، تم التحويل للوضع الاحتياطي.'
         },
         en: {
           badgeProto: 'Clinical Prototype',
@@ -591,7 +615,15 @@
           toastSaved: 'Exam saved to clinic log and KPIs updated.',
           toastCopied: 'Referral summary copied to clipboard.',
           toastUpload: 'Retinal image loaded — ready for AI triage.',
-          toastAligned: 'Focal distance optimized and cross-polarizer enabled.'
+          toastAligned: 'Focal distance optimized and cross-polarizer enabled.',
+          hfTitle: 'Live AI Engine (Hugging Face)',
+          hfModeSim: 'Simulation Mode',
+          hfModeLive: 'Live AI Ready',
+          hfHint: 'Enter your Hugging Face token (stored locally on your device only) and upload a fundus photo for live ViT classification.',
+          engineLive: 'Live AI Inference (Hugging Face)',
+          engineSim: 'Clinical Simulation Mode',
+          toastLiveOk: 'Retinal image classified via live Hugging Face AI.',
+          toastLiveFallback: 'Live model unavailable or warming up — switched to fallback mode.'
         }
       };
 
@@ -743,7 +775,10 @@
         inputAge: document.getElementById('inputAge'),
         inputDuration: document.getElementById('inputDuration'),
         inputHba1c: document.getElementById('inputHba1c'),
-        selectEye: document.getElementById('selectEye')
+        selectEye: document.getElementById('selectEye'),
+        inputHfToken: document.getElementById('inputHfToken'),
+        hfStatusBadge: document.getElementById('hfStatusBadge'),
+        repEngineBadge: document.getElementById('repEngineBadge')
       };
 
       let toastTimer = null;
@@ -980,7 +1015,11 @@
         el.triageTag.textContent = info.tag;
         el.triageTitle.textContent = info.title;
         el.triageSummary.textContent = info.summary;
-        el.repConfidence.textContent = profile.confidence;
+        el.repConfidence.textContent = state.liveAiResult ? state.liveAiResult.confidence : profile.confidence;
+        el.repEngineBadge.textContent = state.liveAiResult ? dict.engineLive : dict.engineSim;
+        el.repEngineBadge.className = state.liveAiResult
+          ? 'text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-teal-100 border border-teal-400 text-teal-900'
+          : 'text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-white/80 border border-slate-300 text-slate-700';
         el.repEye.textContent = eye;
         el.repProtocol.textContent = info.protocol;
         el.repPatientMeta.textContent = state.lang === 'ar'
@@ -1062,6 +1101,7 @@
         renderLiveControls();
         renderReport();
         renderDashboard();
+        updateHfBadge();
       }
 
       // Event Listeners
@@ -1073,6 +1113,8 @@
         btn.addEventListener('click', () => {
           state.selectedCase = btn.dataset.case;
           state.uploadedImage = null;
+          state.uploadedFile = null;
+          state.liveAiResult = null;
           document.querySelectorAll('.case-btn').forEach(b => {
             const active = b.dataset.case === state.selectedCase;
             b.className = active
@@ -1106,8 +1148,77 @@
         showToast(i18n[state.lang].toastAligned);
       });
 
-      el.btnCapture.addEventListener('click', () => {
+      function mapHfLabelToSeverity(label) {
+        const l = String(label || '').toLowerCase();
+        if (l.includes('no') || l === '0' || l.includes('normal')) return 'normal';
+        if (l.includes('severe') || l.includes('proliferat') || l === '3' || l === '4') return 'urgent';
+        return 'moderate';
+      }
+
+      function updateHfBadge() {
+        const dict = i18n[state.lang];
+        const hasToken = state.hfToken.trim().startsWith('hf_');
+        el.hfStatusBadge.textContent = hasToken ? dict.hfModeLive : dict.hfModeSim;
+        el.hfStatusBadge.className = hasToken
+          ? 'text-[11px] font-semibold px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 border border-teal-300'
+          : 'text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600';
+      }
+
+      try {
+        const savedToken = localStorage.getItem('reticlip_hf_token') || '';
+        if (savedToken) {
+          state.hfToken = savedToken;
+          el.inputHfToken.value = savedToken;
+        }
+      } catch (err) {}
+
+      el.inputHfToken.addEventListener('input', (e) => {
+        state.hfToken = e.target.value.trim();
+        try {
+          if (state.hfToken) localStorage.setItem('reticlip_hf_token', state.hfToken);
+          else localStorage.removeItem('reticlip_hf_token');
+        } catch (err) {}
+        updateHfBadge();
+      });
+
+      el.btnCapture.addEventListener('click', async () => {
         el.scanOverlay.classList.remove('hidden');
+        const token = state.hfToken.trim();
+        if (token.startsWith('hf_') && state.uploadedFile) {
+          try {
+            const endpoint = 'https://router.huggingface.co/hf-inference/models/Kontawat/vit-diabetic-retinopathy-classification';
+            const res = await fetch(endpoint, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': state.uploadedFile.type || 'image/jpeg'
+              },
+              body: state.uploadedFile
+            });
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const data = await res.json();
+            if (Array.isArray(data) && data.length > 0 && data[0].label !== undefined) {
+              const top = data[0];
+              state.selectedCase = mapHfLabelToSeverity(top.label);
+              state.liveAiResult = {
+                rawLabel: top.label,
+                confidence: `${(Number(top.score || 0) * 100).toFixed(1)}%`
+              };
+              el.scanOverlay.classList.add('hidden');
+              showToast(i18n[state.lang].toastLiveOk);
+              switchTab('report');
+              return;
+            }
+            throw new Error('Unexpected response');
+          } catch (err) {
+            state.liveAiResult = null;
+            el.scanOverlay.classList.add('hidden');
+            showToast(i18n[state.lang].toastLiveFallback);
+            switchTab('report');
+            return;
+          }
+        }
+        state.liveAiResult = null;
         setTimeout(() => {
           el.scanOverlay.classList.add('hidden');
           switchTab('report');
@@ -1117,6 +1228,8 @@
       el.fileUpload.addEventListener('change', (e) => {
         const file = e.target.files && e.target.files[0];
         if (!file) return;
+        state.uploadedFile = file;
+        state.liveAiResult = null;
         const reader = new FileReader();
         reader.onload = (ev) => {
           const img = new Image();
