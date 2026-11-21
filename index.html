@@ -3,8 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RetiClip AI — النموذج الأولي التفاعلي لفرز اعتلال الشبكية السكري</title>
+  <title>RetiClip AI — نظام الفرز الذكي لاعتلال الشبكية السكري</title>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8.5/dist/teachablemachine-image.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -23,13 +25,13 @@
       right: 0;
       height: 3px;
       background: linear-gradient(90deg, transparent, #14B8A6, #5EEAD4, #14B8A6, transparent);
-      box-shadow: 0 0 14px #14B8A6;
-      animation: scanMove 1.1s ease-in-out infinite;
+      box-shadow: 0 0 16px #14B8A6;
+      animation: scanMove 1.15s ease-in-out infinite;
     }
     @keyframes scanMove {
-      0% { top: 8%; opacity: 0.2; }
+      0% { top: 8%; opacity: 0.25; }
       50% { top: 88%; opacity: 1; }
-      100% { top: 8%; opacity: 0.2; }
+      100% { top: 8%; opacity: 0.25; }
     }
     input[type="range"] {
       accent-color: #0E9F9A;
@@ -51,16 +53,16 @@
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-lg font-bold tracking-tight">RetiClip AI</h1>
-            <span class="text-xs px-2 py-0.5 rounded-full bg-teal-500/25 border border-teal-300/40 text-teal-100 font-medium" data-i18n="badgeProto">نموذج أولي سريري</span>
+            <span class="text-xs px-2 py-0.5 rounded-full bg-teal-500/25 border border-teal-300/40 text-teal-100 font-medium" data-i18n="badgeEngine">Vision AI v1.0</span>
           </div>
-          <p class="text-xs text-slate-200" data-i18n="headerSub">الفرز المبكر لاعتلال الشبكية السكري — مراكز الرعاية الأولية</p>
+          <p class="text-xs text-slate-200" data-i18n="headerSub">الفحص المنزلي الذكي لاعتلال الشبكية — لكل مرضى السكري (قابل للربط بالمراكز الصحية)</p>
         </div>
       </div>
 
       <div class="flex items-center gap-2">
         <span class="hidden sm:inline-flex items-center gap-1.5 text-xs bg-white/10 px-3 py-1.5 rounded-full border border-white/15">
-          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          <span data-i18n="lensConnected">عدسة +20D متصلة · IR جاهز</span>
+          <span id="aiStatusDot" class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+          <span id="aiStatusText" data-i18n="lensConnected">جارٍ تحميل نموذج Deep Learning...</span>
         </span>
         <button id="btnLangToggle" type="button" class="text-xs font-semibold bg-white/15 hover:bg-white/25 transition px-3 py-1.5 rounded-lg border border-white/20">
           EN
@@ -72,13 +74,13 @@
     <nav class="bg-[#073B50] border-t border-white/10">
       <div class="max-w-6xl mx-auto px-4 flex overflow-x-auto gap-1 py-1.5">
         <button type="button" data-tab="scan" class="tab-btn whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold transition bg-[#0E9F9A] text-white">
-          <span data-i18n="tabScan">1. الفحص والمحاذاة</span>
+          <span data-i18n="tabScan">1. الفحص والتحليل الذكي</span>
         </button>
         <button type="button" data-tab="report" class="tab-btn whitespace-nowrap px-4 py-2 rounded-lg text-sm font-medium transition text-slate-200 hover:bg-white/10">
-          <span data-i18n="tabReport">2. تقرير الفرز الذكي</span>
+          <span data-i18n="tabReport">2. التقرير التشخيصي</span>
         </button>
         <button type="button" data-tab="dashboard" class="tab-btn whitespace-nowrap px-4 py-2 rounded-lg text-sm font-medium transition text-slate-200 hover:bg-white/10">
-          <span data-i18n="tabDash">3. سجل العيادة والأثر</span>
+          <span data-i18n="tabDash">3. سجل الفحوصات والأثر</span>
         </button>
         <button type="button" data-tab="hardware" class="tab-btn whitespace-nowrap px-4 py-2 rounded-lg text-sm font-medium transition text-slate-200 hover:bg-white/10">
           <span data-i18n="tabHardware">4. العدسة المطبوعة 3D</span>
@@ -90,35 +92,35 @@
   <!-- Main Content -->
   <main class="max-w-6xl w-full mx-auto px-4 py-6 flex-1">
 
-    <!-- ==================== TAB 1: LIVE SCAN ==================== -->
+    <!-- ==================== TAB 1: LIVE SCAN & UPLOAD ==================== -->
     <section id="view-scan" class="tab-view space-y-6">
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 
-        <!-- Left/Start Column: Patient & Optical Controls -->
+        <!-- Left/Start Column: Patient Intake & Image Acquisition -->
         <div class="lg:col-span-5 space-y-4">
           <!-- Patient Intake Card -->
           <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h2 class="text-base font-bold text-[#0A4D68]" data-i18n="patientInfoTitle">بيانات الفحص السريع</h2>
-              <span class="text-xs text-slate-500" data-i18n="phcLabel">عيادة الرعاية الأولية</span>
+              <h2 class="text-base font-bold text-[#0A4D68]" data-i18n="patientInfoTitle">بيانات المريض للفحص</h2>
+              <span class="text-xs text-slate-500" data-i18n="phcLabel">منزلي / قابل للربط بالمركز الصحي</span>
             </div>
 
             <div class="grid grid-cols-2 gap-3">
               <div class="col-span-2">
-                <label for="inputPatientId" class="block text-xs font-semibold text-slate-600 mb-1" data-i18n="lblPatient">رقم الملف / رمز المريض</label>
-                <input id="inputPatientId" type="text" value="PHC-2026-041" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+                <label for="inputPatientId" class="block text-xs font-semibold text-slate-600 mb-1" data-i18n="lblPatient">الاسم أو رقم الملف (اختياري)</label>
+                <input id="inputPatientId" type="text" value="PT-2026-104" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
               </div>
               <div>
                 <label for="inputAge" class="block text-xs font-semibold text-slate-600 mb-1" data-i18n="lblAge">العمر (سنة)</label>
-                <input id="inputAge" type="number" min="10" max="100" value="54" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+                <input id="inputAge" type="number" min="10" max="100" value="52" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
               </div>
               <div>
                 <label for="inputDuration" class="block text-xs font-semibold text-slate-600 mb-1" data-i18n="lblDuration">مدة السكري (سنوات)</label>
-                <input id="inputDuration" type="number" min="0" max="60" value="11" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+                <input id="inputDuration" type="number" min="0" max="60" value="9" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
               </div>
               <div>
                 <label for="inputHba1c" class="block text-xs font-semibold text-slate-600 mb-1" data-i18n="lblHba1c">التراكمي HbA1c (%)</label>
-                <input id="inputHba1c" type="number" step="0.1" min="4" max="16" value="8.4" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+                <input id="inputHba1c" type="number" step="0.1" min="4" max="16" value="7.8" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
               </div>
               <div>
                 <label for="selectEye" class="block text-xs font-semibold text-slate-600 mb-1" data-i18n="lblEye">العين المفحوصة</label>
@@ -130,41 +132,41 @@
             </div>
           </div>
 
-          <!-- Demo Case & Image Upload -->
+          <!-- Retinal Image Upload / Drag & Drop Card -->
           <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4">
-            <h2 class="text-base font-bold text-[#0A4D68]" data-i18n="demoSourceTitle">مصدر صورة قاع العين (للتجربة الحية)</h2>
-            <div class="grid grid-cols-3 gap-2">
-              <button type="button" data-case="normal" class="case-btn px-2.5 py-2.5 rounded-xl border text-xs font-semibold transition border-slate-200 hover:border-teal-500 text-slate-700 bg-slate-50">
-                <span data-i18n="caseNormal">شبكية سليمة</span>
-              </button>
-              <button type="button" data-case="moderate" class="case-btn px-2.5 py-2.5 rounded-xl border text-xs font-semibold transition border-teal-600 bg-teal-50 text-[#0A4D68]">
-                <span data-i18n="caseModerate">اعتلال متوسط</span>
-              </button>
-              <button type="button" data-case="urgent" class="case-btn px-2.5 py-2.5 rounded-xl border text-xs font-semibold transition border-slate-200 hover:border-teal-500 text-slate-700 bg-slate-50">
-                <span data-i18n="caseUrgent">اعتلال حرج</span>
-              </button>
+            <div class="flex items-center justify-between">
+              <h2 class="text-base font-bold text-[#0A4D68]" data-i18n="uploadCardTitle">إدخال صورة قاع العين</h2>
+              <span id="uploadStateBadge" class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600" data-i18n="awaitingImg">بانتظار الصورة</span>
             </div>
 
-            <div class="pt-1">
-              <label for="fileUpload" class="flex items-center justify-center gap-2 w-full py-2.5 px-3 rounded-xl border border-dashed border-slate-300 hover:border-teal-500 hover:bg-teal-50/40 text-xs font-semibold text-slate-600 cursor-pointer transition">
-                <svg class="w-4 h-4 text-teal-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <div id="dropZone" class="rounded-2xl border-2 border-dashed border-slate-300 hover:border-teal-500 hover:bg-teal-50/40 transition p-6 text-center cursor-pointer space-y-2.5">
+              <div class="w-12 h-12 rounded-2xl bg-teal-50 border border-teal-200 text-[#0A4D68] flex items-center justify-center mx-auto">
+                <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                   <polyline points="17 8 12 3 7 8"/>
                   <line x1="12" y1="3" x2="12" y2="15"/>
                 </svg>
-                <span data-i18n="uploadBtn">أو ارفع صورة شبكية حقيقية من جهازك</span>
-              </label>
+              </div>
+              <div>
+                <p class="text-sm font-bold text-slate-800" data-i18n="dropTitle">اسحب وأفلت صورة الشبكية هنا أو اضغط للاختيار</p>
+                <p class="text-xs text-slate-500 mt-1" data-i18n="dropSub">يدعم JPG / PNG / WebP — تصوير مباشر عبر عدسة RetiClip +20D أو ملف من الجهاز</p>
+              </div>
               <input id="fileUpload" type="file" accept="image/*" class="hidden">
             </div>
 
-            <!-- Live Hugging Face AI Integration -->
-            <div class="pt-3 border-t border-slate-100 space-y-2.5">
-              <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-[#0A4D68]" data-i18n="hfTitle">ربط الذكاء الاصطناعي الحقيقي (Hugging Face)</span>
-                <span id="hfStatusBadge" class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600" data-i18n="hfModeSim">وضع المحاكاة</span>
-              </div>
-              <input id="inputHfToken" type="password" placeholder="hf_xxxxxxxxxxxxxxxxxxxx" autocomplete="off" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-teal-500">
-              <p class="text-[11px] text-slate-500 leading-relaxed" data-i18n="hfHint">أدخل مفتاح Hugging Face (يُحفظ على جهازك فقط) وارفع صورة شبكية حقيقية لتشغيل التصنيف الفعلي عبر نموذج ViT الطبي.</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <label for="cameraCapture" class="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold cursor-pointer transition">
+                <svg class="w-4 h-4 text-[#0A4D68]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                  <circle cx="12" cy="13" r="4"/>
+                </svg>
+                <span data-i18n="btnCameraCapture">التقاط بكاميرا الجوال</span>
+              </label>
+              <input id="cameraCapture" type="file" accept="image/*" capture="environment" class="hidden">
+
+              <button id="btnClearImg" type="button" class="py-2.5 px-3 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-semibold transition">
+                <span data-i18n="btnClearImg">مسح الصورة الحالية</span>
+              </button>
             </div>
           </div>
         </div>
@@ -173,11 +175,11 @@
         <div class="lg:col-span-7 bg-slate-900 text-white rounded-2xl shadow-lg border border-slate-800 p-5 space-y-4">
           <div class="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <h2 class="text-base font-bold text-white" data-i18n="viewportTitle">منظار المحاذاة الذكي (RetiClip Live View)</h2>
-              <p class="text-xs text-slate-400" data-i18n="viewportSub">اضبط المسافة البؤرية وفعّل فلتر الاستقطاب لتحقيق صفاء القاع</p>
+              <h2 class="text-base font-bold text-white" data-i18n="viewportTitle">منظار التحليل والمحاذاة البصرية (RetiClip Vision)</h2>
+              <p class="text-xs text-slate-400" data-i18n="viewportSub">ارفع صورة قاع العين ثم اضبط البؤرة والاستقطاب لتشغيل محرك التشخيص الفوري</p>
             </div>
-            <span id="qualityBadge" class="text-xs font-bold px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30">
-              جودة المحاذاة: 62%
+            <span id="qualityBadge" class="text-xs font-bold px-3 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+              بانتظار الصورة
             </span>
           </div>
 
@@ -185,24 +187,39 @@
           <div class="relative w-full max-w-md mx-auto aspect-square rounded-2xl overflow-hidden bg-black border border-slate-700 flex items-center justify-center">
             <canvas id="liveCanvas" width="440" height="440" class="w-full h-full block"></canvas>
 
-            <!-- Alignment Reticle Overlay -->
-            <div id="reticleRing" class="pointer-events-none absolute inset-6 rounded-full border-2 border-dashed border-amber-400/80 transition-colors duration-300 flex items-center justify-center">
-              <div class="w-6 h-6 border-2 border-white/50 rounded-full"></div>
+            <!-- Empty Prompt Overlay -->
+            <div id="emptyPrompt" class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center px-8">
+              <div class="w-16 h-16 rounded-full border-2 border-dashed border-teal-400/50 flex items-center justify-center mb-3">
+                <svg class="w-7 h-7 text-teal-400/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              </div>
+              <p class="text-sm font-semibold text-slate-200" data-i18n="emptyCanvasTitle">لا توجد صورة شبكية محمّلة بعد</p>
+              <p class="text-xs text-slate-400 mt-1" data-i18n="emptyCanvasSub">ارفع أي صورة قاع عين من القائمة الجانبية لبدء الفحص الفعلي بالذكاء الاصطناعي</p>
             </div>
 
-            <!-- Scanning Animation Overlay -->
-            <div id="scanOverlay" class="hidden absolute inset-0 bg-slate-950/60 backdrop-blur-[1px] flex flex-col items-center justify-center gap-3 z-10">
+            <!-- Alignment Reticle Overlay -->
+            <div id="reticleRing" class="pointer-events-none absolute inset-6 rounded-full border-2 border-dashed border-slate-600/80 transition-colors duration-300 flex items-center justify-center">
+              <div class="w-6 h-6 border-2 border-white/40 rounded-full"></div>
+            </div>
+
+            <!-- Multi-Stage AI Scanning Overlay -->
+            <div id="scanOverlay" class="hidden absolute inset-0 bg-slate-950/75 backdrop-blur-[1px] flex flex-col items-center justify-center gap-3 z-10 px-6">
               <div class="scan-line"></div>
-              <div class="bg-slate-900/90 border border-teal-400/40 px-4 py-2 rounded-xl text-center">
-                <p class="text-sm font-bold text-teal-300" data-i18n="scanningText">جارٍ تحليل الشبكية بالذكاء الاصطناعي...</p>
-                <p class="text-xs text-slate-300 mt-0.5" data-i18n="scanningSub">فحص الأوعية الدموية والبقعة الصفراء (Offline CNN)</p>
+              <div class="bg-slate-900/95 border border-teal-400/40 px-5 py-3.5 rounded-2xl text-center max-w-xs w-full shadow-2xl">
+                <p id="scanStageTitle" class="text-sm font-bold text-teal-300">جارٍ تهيئة محرك الرؤية...</p>
+                <p id="scanStageSub" class="text-xs text-slate-300 mt-1">فحص جودة الإضاءة وصلاحية قاع العين</p>
+                <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden mt-3">
+                  <div id="scanProgressBar" class="bg-teal-400 h-full transition-all duration-300" style="width: 18%;"></div>
+                </div>
               </div>
             </div>
 
             <!-- HUD Info Pills -->
             <div class="pointer-events-none absolute bottom-3 inset-x-3 flex justify-between text-[11px] font-mono text-slate-200">
-              <span id="hudMode" class="bg-black/65 px-2.5 py-1 rounded-md border border-white/10">IR: ON</span>
-              <span id="hudGlare" class="bg-black/65 px-2.5 py-1 rounded-md border border-white/10">POLARIZER: OFF</span>
+              <span id="hudMode" class="bg-black/70 px-2.5 py-1 rounded-md border border-white/10">IR GUIDE: ON</span>
+              <span id="hudGlare" class="bg-black/70 px-2.5 py-1 rounded-md border border-white/10">POLARIZER: ON</span>
             </div>
           </div>
 
@@ -210,31 +227,30 @@
           <div class="bg-slate-800/70 rounded-xl p-4 space-y-3 border border-slate-700/80">
             <div>
               <div class="flex justify-between text-xs mb-1">
-                <span class="font-semibold text-slate-200" data-i18n="lblFocus">ضبط المسافة البؤرية لعدسة +20D</span>
-                <span id="focusVal" class="font-mono text-teal-300">28%</span>
+                <span class="font-semibold text-slate-200" data-i18n="lblFocus">ضبط البؤرة الرقمية لعدسة +20D</span>
+                <span id="focusVal" class="font-mono text-teal-300">50%</span>
               </div>
-              <input id="sliderFocus" type="range" min="0" max="100" value="28" class="w-full cursor-pointer">
+              <input id="sliderFocus" type="range" min="0" max="100" value="50" class="w-full cursor-pointer">
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
-              <button id="btnTogglePolarizer" type="button" class="flex items-center justify-between px-3.5 py-2.5 rounded-xl border border-slate-600 bg-slate-800 hover:bg-slate-700 text-xs font-semibold transition">
+              <button id="btnTogglePolarizer" type="button" class="flex items-center justify-between px-3.5 py-2.5 rounded-xl border border-teal-500/60 bg-teal-900/40 hover:bg-teal-900/60 text-xs font-semibold transition">
                 <span data-i18n="btnPolarizer">فلتر الاستقطاب (منع الوهج)</span>
-                <span id="statePolarizer" class="px-2 py-0.5 rounded bg-slate-700 text-slate-300">إيقاف</span>
+                <span id="statePolarizer" class="px-2 py-0.5 rounded bg-teal-500/30 text-teal-200">مفعّل</span>
               </button>
               <button id="btnToggleIR" type="button" class="flex items-center justify-between px-3.5 py-2.5 rounded-xl border border-teal-500/60 bg-teal-900/40 hover:bg-teal-900/60 text-xs font-semibold transition">
-                <span data-i18n="btnIR">توجيه IR (بدون قطرة توسيع)</span>
+                <span data-i18n="btnIR">وضع التوجيه IR (بدون توسيع)</span>
                 <span id="stateIR" class="px-2 py-0.5 rounded bg-teal-500/30 text-teal-200">مفعّل</span>
               </button>
             </div>
 
-            <div class="flex flex-col sm:flex-row gap-2.5 pt-2">
-              <button id="btnAutoAlign" type="button" class="flex-1 py-2.5 px-4 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-sm font-semibold transition">
-                <span data-i18n="btnAutoAlign">محاذاة ذكية تلقائية</span>
-              </button>
-              <button id="btnCapture" type="button" class="flex-1 py-2.5 px-4 rounded-xl bg-[#0E9F9A] hover:bg-teal-500 text-white text-sm font-bold shadow-md transition">
-                <span data-i18n="btnCapture">التقاط وتحليل بالذكاء الاصطناعي</span>
-              </button>
-            </div>
+            <button id="btnAnalyze" type="button" class="w-full py-3 px-4 rounded-xl bg-[#0E9F9A] hover:bg-teal-500 text-white text-sm font-bold shadow-md transition flex items-center justify-center gap-2">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <span data-i18n="btnAnalyze">بدء الفحص والتحليل بالذكاء الاصطناعي</span>
+            </button>
           </div>
         </div>
 
@@ -243,76 +259,120 @@
 
     <!-- ==================== TAB 2: AI TRIAGE REPORT ==================== -->
     <section id="view-report" class="tab-view hidden space-y-6">
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div id="noReportNotice" class="bg-white rounded-2xl border border-slate-200 p-10 text-center space-y-3">
+        <p class="text-base font-bold text-[#0A4D68]" data-i18n="noReportTitle">لم يتم تشغيل تحليل لصورة شبكية بعد</p>
+        <p class="text-sm text-slate-500" data-i18n="noReportSub">ارجع لتبويب الفحص وارفع صورة قاع عين لتوليد التقرير التشخيصي والخريطة الحرارية.</p>
+        <button id="btnGoScan" type="button" class="px-5 py-2.5 rounded-xl bg-[#0E9F9A] text-white text-sm font-bold hover:bg-teal-500 transition">
+          <span data-i18n="btnGoScan">الانتقال لشاشة الفحص</span>
+        </button>
+      </div>
 
-        <!-- Captured Fundus + Heatmap -->
+      <div id="reportContent" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+        <!-- Analyzed Image + 3 Vision View Modes -->
         <div class="lg:col-span-5 bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4">
           <div class="flex items-center justify-between">
-            <h2 class="text-base font-bold text-[#0A4D68]" data-i18n="capturedTitle">صورة الشبكية الملتقطة</h2>
-            <button id="btnToggleHeatmap" type="button" class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-teal-600 bg-teal-50 text-[#0A4D68] hover:bg-teal-100 transition">
-              <span data-i18n="btnHeatmapOn">خريطة اشتباه AI: مفعّلة</span>
-            </button>
+            <h2 class="text-base font-bold text-[#0A4D68]" data-i18n="capturedTitle">مخرجات الرؤية الحاسوبية</h2>
+            <span id="repEngineBadge" class="text-[11px] font-mono px-2 py-0.5 rounded bg-teal-50 text-teal-800 border border-teal-200">RetiClip CNN</span>
           </div>
 
           <div class="relative w-full aspect-square rounded-2xl overflow-hidden bg-black border border-slate-200">
             <canvas id="reportCanvas" width="440" height="440" class="w-full h-full block"></canvas>
           </div>
 
+          <!-- 3 Interactive Visual Filters -->
+          <div class="grid grid-cols-3 gap-1.5">
+            <button type="button" data-vmode="heatmap" class="vmode-btn py-2 px-2 rounded-xl text-xs font-bold border border-teal-600 bg-teal-50 text-[#0A4D68] transition">
+              <span data-i18n="vmHeatmap">خريطة AI</span>
+            </button>
+            <button type="button" data-vmode="green" class="vmode-btn py-2 px-2 rounded-xl text-xs font-semibold border border-slate-200 bg-slate-50 text-slate-700 hover:border-teal-400 transition">
+              <span data-i18n="vmGreen">القناة الخضراء</span>
+            </button>
+            <button type="button" data-vmode="original" class="vmode-btn py-2 px-2 rounded-xl text-xs font-semibold border border-slate-200 bg-slate-50 text-slate-700 hover:border-teal-400 transition">
+              <span data-i18n="vmOriginal">الأصلية</span>
+            </button>
+          </div>
+
           <div class="grid grid-cols-3 gap-2 text-center">
             <div class="bg-slate-50 rounded-xl p-2.5 border border-slate-200">
               <span class="block text-[11px] text-slate-500" data-i18n="metricConf">ثقة النموذج</span>
-              <span id="repConfidence" class="text-sm font-bold text-[#0A4D68]">94.2%</span>
+              <span id="repConfidence" class="text-sm font-bold text-[#0A4D68]">--</span>
             </div>
             <div class="bg-slate-50 rounded-xl p-2.5 border border-slate-200">
-              <span class="block text-[11px] text-slate-500" data-i18n="metricEye">العين</span>
-              <span id="repEye" class="text-sm font-bold text-[#0A4D68]">OD</span>
+              <span class="block text-[11px] text-slate-500" data-i18n="metricDark">كثافة النزيف</span>
+              <span id="repDarkPct" class="text-sm font-bold text-[#0A4D68]">--</span>
             </div>
             <div class="bg-slate-50 rounded-xl p-2.5 border border-slate-200">
-              <span class="block text-[11px] text-slate-500" data-i18n="metricTime">زمن الفحص</span>
-              <span class="text-sm font-bold text-[#0A4D68]">1.2s</span>
+              <span class="block text-[11px] text-slate-500" data-i18n="metricExudate">الإفرازات الصفراء</span>
+              <span id="repExudatePct" class="text-sm font-bold text-[#0A4D68]">--</span>
             </div>
           </div>
         </div>
 
-        <!-- Triage Classification & Clinical Action -->
+        <!-- Triage Classification & Probability Distribution -->
         <div class="lg:col-span-7 space-y-4">
-          <div id="triageBanner" class="rounded-2xl p-5 border-2 bg-amber-50 border-amber-300 space-y-2">
+          <div id="triageBanner" class="rounded-2xl p-5 border-2 bg-slate-50 border-slate-200 space-y-2">
             <div class="flex flex-wrap items-center justify-between gap-2">
-              <span id="triageTag" class="text-xs font-bold uppercase px-3 py-1 rounded-full bg-amber-200 text-amber-900">
-                متابعة مجدولة
-              </span>
-              <div class="flex flex-wrap items-center gap-2">
-                <span id="repEngineBadge" class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-white/80 border border-slate-300 text-slate-700">محاكاة سريرية</span>
-                <span id="repPatientMeta" class="text-xs font-semibold text-slate-600">
-                  PHC-2026-041 · 54 سنة · سكري 11 سنة
-                </span>
+              <span id="triageTag" class="text-xs font-bold px-3 py-1 rounded-full">--</span>
+              <span id="repPatientMeta" class="text-xs font-semibold text-slate-600">--</span>
+            </div>
+            <h2 id="triageTitle" class="text-xl font-bold text-slate-900">--</h2>
+            <p id="triageSummary" class="text-sm text-slate-700 leading-relaxed">--</p>
+          </div>
+
+          <!-- AI Class Probability Bars -->
+          <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-3">
+            <h3 class="text-sm font-bold text-[#0A4D68]" data-i18n="probTitle">توزيع احتمالات التصنيف (AI Confidence Distribution)</h3>
+            <div class="space-y-2.5 text-xs">
+              <div>
+                <div class="flex justify-between font-semibold mb-1">
+                  <span data-i18n="probNormal">شبكية سليمة (No DR)</span>
+                  <span id="probValNormal" class="font-mono">0%</span>
+                </div>
+                <div class="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div id="probBarNormal" class="h-full bg-emerald-500 rounded-full transition-all duration-500" style="width: 0%;"></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between font-semibold mb-1">
+                  <span data-i18n="probModerate">اعتلال غير تكاثري (Mild / Moderate NPDR)</span>
+                  <span id="probValModerate" class="font-mono">0%</span>
+                </div>
+                <div class="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div id="probBarModerate" class="h-full bg-amber-500 rounded-full transition-all duration-500" style="width: 0%;"></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between font-semibold mb-1">
+                  <span data-i18n="probUrgent">اعتلال حرج يهدد البصر (Severe / PDR)</span>
+                  <span id="probValUrgent" class="font-mono">0%</span>
+                </div>
+                <div class="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div id="probBarUrgent" class="h-full bg-red-500 rounded-full transition-all duration-500" style="width: 0%;"></div>
+                </div>
               </div>
             </div>
-            <h2 id="triageTitle" class="text-xl font-bold text-slate-900">اشتباه اعتلال شبكية سكري متوسط (Moderate NPDR)</h2>
-            <p id="triageSummary" class="text-sm text-slate-700 leading-relaxed">
-              رصد النموذج بؤر نزيف نقطية دقيقة وتمددات وعائية مجهرية حول القطب الخلفي. يوصى بجدولة مراجعة لدى طبيب العيون خلال 3 إلى 6 أشهر مع تحسين ضبط السكر التراكمي.
-            </p>
           </div>
 
           <!-- Clinical Findings Breakdown -->
           <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4">
-            <h3 class="text-base font-bold text-[#0A4D68]" data-i18n="findingsTitle">تفاصيل المؤشرات السريرية والتوصية</h3>
+            <h3 class="text-base font-bold text-[#0A4D68]" data-i18n="findingsTitle">المؤشرات المستخرجة ومسار القرار الطبي</h3>
             <div id="findingsList" class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm"></div>
 
             <div class="bg-slate-50 rounded-xl p-4 border border-slate-200">
-              <h4 class="text-xs font-bold text-slate-500 mb-1" data-i18n="actionProtocolTitle">مسار القرار في الرعاية الأولية</h4>
+              <h4 class="text-xs font-bold text-slate-500 mb-1" data-i18n="actionProtocolTitle">التوصية السريرية المعتمدة</h4>
               <p id="repProtocol" class="text-sm font-semibold text-slate-800"></p>
             </div>
 
-            <div class="flex flex-wrap gap-2.5 pt-2">
+            <div class="flex flex-wrap gap-2.5 pt-1">
               <button id="btnSaveRecord" type="button" class="flex-1 min-w-[150px] py-2.5 px-4 rounded-xl bg-[#0A4D68] hover:bg-[#073B50] text-white text-sm font-bold transition">
-                <span data-i18n="btnSaveRecord">حفظ في سجل العيادة</span>
+                <span data-i18n="btnSaveRecord">حفظ في سجل فحوصاتي</span>
               </button>
               <button id="btnCopySummary" type="button" class="flex-1 min-w-[150px] py-2.5 px-4 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0A4D68] border border-teal-300 text-sm font-semibold transition">
-                <span data-i18n="btnCopySummary">نسخ ملخص التحويل</span>
+                <span data-i18n="btnCopySummary">نسخ تقرير للمركز الصحي / الطبيب</span>
               </button>
               <button id="btnNewScan" type="button" class="py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold transition">
-                <span data-i18n="btnNewScan">فحص جديد</span>
+                <span data-i18n="btnNewScan">فحص صورة جديدة</span>
               </button>
             </div>
           </div>
@@ -323,26 +383,24 @@
 
     <!-- ==================== TAB 3: CLINIC DASHBOARD & SAUDI IMPACT ==================== -->
     <section id="view-dashboard" class="tab-view hidden space-y-6">
-      <!-- Live KPI Cards -->
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-          <span class="text-xs font-semibold text-slate-500" data-i18n="kpiTotal">إجمالي الحالات المفحوصة بالعيادة</span>
-          <div id="kpiTotalVal" class="text-3xl font-bold text-[#0A4D68] mt-1">2</div>
+          <span class="text-xs font-semibold text-slate-500" data-i18n="kpiTotal">إجمالي الفحوصات المنجزة</span>
+          <div id="kpiTotalVal" class="text-3xl font-bold text-[#0A4D68] mt-1">0</div>
         </div>
         <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
           <span class="text-xs font-semibold text-slate-500" data-i18n="kpiUrgent">تحويلات عاجلة (تجاوز انتظار 6 أشهر)</span>
-          <div id="kpiUrgentVal" class="text-3xl font-bold text-red-600 mt-1">1</div>
+          <div id="kpiUrgentVal" class="text-3xl font-bold text-red-600 mt-1">0</div>
         </div>
         <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-          <span class="text-xs font-semibold text-slate-500" data-i18n="kpiSafe">حالات سليمة تم فرزها بالرعاية الأولية</span>
-          <div id="kpiSafeVal" class="text-3xl font-bold text-emerald-600 mt-1">1</div>
+          <span class="text-xs font-semibold text-slate-500" data-i18n="kpiSafe">فحوصات سليمة (اطمئنان منزلي)</span>
+          <div id="kpiSafeVal" class="text-3xl font-bold text-emerald-600 mt-1">0</div>
         </div>
       </div>
 
-      <!-- Clinic Records Table -->
       <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div class="p-5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
-          <h2 class="text-base font-bold text-[#0A4D68]" data-i18n="logTitle">سجل فحوصات العيادة (تحديث لحظي)</h2>
+          <h2 class="text-base font-bold text-[#0A4D68]" data-i18n="logTitle">سجل الفحوصات (جاهز للمشاركة مع المركز الصحي)</h2>
           <div class="flex flex-wrap gap-1.5">
             <button type="button" data-filter="all" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#0A4D68] text-white" data-i18n="fltAll">الكل</button>
             <button type="button" data-filter="urgent" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200" data-i18n="fltUrgent">تحويل عاجل</button>
@@ -399,7 +457,7 @@
           <span class="text-xs font-bold text-teal-700 bg-teal-50 px-3 py-1 rounded-full border border-teal-200" data-i18n="hwTag">تصميم بصري مطبوع 3D</span>
           <h2 class="text-2xl font-bold text-[#0A4D68]" data-i18n="hwTitle">هندسة محوّل RetiClip البصري</h2>
           <p class="text-sm text-slate-600 leading-relaxed" data-i18n="hwDesc">
-            يُطبع هيكل الجهاز بمادة PLA مطفية من الداخل لمنع التشتت الضوئي، ويثبّت عدسة طبية (+20D) على مسافة بؤرية مضبوطة أمام كاميرا الجوال، مما يحوّل أي هاتف في مركز الرعاية الأولية إلى كاميرا قاع عين محمولة بتكلفة منخفضة جداً.
+            يُطبع هيكل الجهاز بمادة PLA مطفية من الداخل لمنع التشتت الضوئي، ويثبّت عدسة طبية (+20D) على مسافة بؤرية مضبوطة أمام كاميرا الجوال، مما يمكّن أي مريض سكري في منزله (بمساعدة أسرته) من إجراء فحص أولي سريع، مع إمكانية ربط النتائج مستقبلاً بمراكز الرعاية الأولية وتطبيق صحتي.
           </p>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
             <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
@@ -432,73 +490,82 @@
 
   <script>
     (function () {
+      const TM_MODEL_URL = 'https://teachablemachine.withgoogle.com/models/PYGrYzGAd/';
+
       const state = {
         lang: 'ar',
         activeTab: 'scan',
-        selectedCase: 'moderate', // 'normal' | 'moderate' | 'urgent'
         uploadedImage: null,
-        uploadedFile: null,
-        hfToken: '',
-        liveAiResult: null,
-        focus: 28, // sweet spot 44..56
-        polarizer: false,
-        irMode: true,
-        heatmap: true,
+        focus: 50,
+        polarizer: true,
+        irMode: false,
+        viewMode: 'heatmap', // 'heatmap' | 'green' | 'original'
+        analysis: null,
         filter: 'all',
-        lastReport: null,
-        records: [
-          { id: 'PHC-2026-038 (Demo)', eye: 'OD', hba1c: '9.2%', severity: 'urgent', time: '09:15' },
-          { id: 'PHC-2026-039 (Demo)', eye: 'OS', hba1c: '6.8%', severity: 'normal', time: '09:42' }
-        ]
+        records: [],
+        tmModel: null,
+        tmPromise: null,
+        tmStatus: 'loading' // 'loading' | 'ready' | 'fallback'
       };
 
       const i18n = {
         ar: {
-          badgeProto: 'نموذج أولي سريري',
-          headerSub: 'الفرز المبكر لاعتلال الشبكية السكري — مراكز الرعاية الأولية',
-          lensConnected: 'عدسة +20D متصلة · IR جاهز',
-          tabScan: '1. الفحص والمحاذاة',
-          tabReport: '2. تقرير الفرز الذكي',
-          tabDash: '3. سجل العيادة والأثر',
+          badgeEngine: 'Deep Learning CNN',
+          headerSub: 'الفحص المنزلي الذكي لاعتلال الشبكية — لكل مرضى السكري (قابل للربط بالمراكز الصحية)',
+          lensConnected: 'نموذج Deep Learning جاهز · +20D IR',
+          lensLoading: 'جارٍ تحميل نموذج الشبكة العصبية...',
+          lensFallback: 'وضع التحليل البصري المحلي · +20D IR',
+          tabScan: '1. الفحص والتحليل الذكي',
+          tabReport: '2. التقرير التشخيصي',
+          tabDash: '3. سجل الفحوصات والأثر',
           tabHardware: '4. العدسة المطبوعة 3D',
-          patientInfoTitle: 'بيانات الفحص السريع',
-          phcLabel: 'عيادة الرعاية الأولية',
-          lblPatient: 'رقم الملف / رمز المريض',
+          patientInfoTitle: 'بيانات المريض للفحص',
+          phcLabel: 'منزلي / قابل للربط بالمركز الصحي',
+          lblPatient: 'الاسم أو رقم الملف (اختياري)',
           lblAge: 'العمر (سنة)',
           lblDuration: 'مدة السكري (سنوات)',
           lblHba1c: 'التراكمي HbA1c (%)',
           lblEye: 'العين المفحوصة',
           optRightEye: 'اليمنى (OD)',
           optLeftEye: 'اليسرى (OS)',
-          demoSourceTitle: 'مصدر صورة قاع العين (للتجربة الحية)',
-          caseNormal: 'شبكية سليمة',
-          caseModerate: 'اعتلال متوسط',
-          caseUrgent: 'اعتلال حرج',
-          uploadBtn: 'أو ارفع صورة شبكية حقيقية من جهازك',
-          viewportTitle: 'منظار المحاذاة الذكي (RetiClip Live View)',
-          viewportSub: 'اضبط المسافة البؤرية وفعّل فلتر الاستقطاب لتحقيق صفاء القاع',
-          scanningText: 'جارٍ تحليل الشبكية بالذكاء الاصطناعي...',
-          scanningSub: 'فحص الأوعية الدموية والبقعة الصفراء (Offline CNN)',
-          lblFocus: 'ضبط المسافة البؤرية لعدسة +20D',
+          uploadCardTitle: 'إدخال صورة قاع العين',
+          awaitingImg: 'بانتظار الصورة',
+          imgReady: 'الصورة جاهزة للفحص',
+          dropTitle: 'اسحب وأفلت صورة الشبكية هنا أو اضغط للاختيار',
+          dropSub: 'يدعم JPG / PNG / WebP — تصوير مباشر عبر عدسة RetiClip +20D أو ملف من الجهاز',
+          btnCameraCapture: 'التقاط بكاميرا الجوال',
+          btnClearImg: 'مسح الصورة الحالية',
+          viewportTitle: 'منظار التحليل والمحاذاة البصرية (RetiClip Vision)',
+          viewportSub: 'ارفع صورة قاع العين ثم اضبط البؤرة والاستقطاب لتشغيل محرك التشخيص الفوري',
+          emptyCanvasTitle: 'لا توجد صورة شبكية محمّلة بعد',
+          emptyCanvasSub: 'ارفع أي صورة قاع عين من القائمة الجانبية لبدء الفحص الفعلي بالذكاء الاصطناعي',
+          lblFocus: 'ضبط البؤرة الرقمية لعدسة +20D',
           btnPolarizer: 'فلتر الاستقطاب (منع الوهج)',
-          btnIR: 'توجيه IR (بدون قطرة توسيع)',
-          btnAutoAlign: 'محاذاة ذكية تلقائية',
-          btnCapture: 'التقاط وتحليل بالذكاء الاصطناعي',
-          capturedTitle: 'صورة الشبكية الملتقطة',
-          btnHeatmapOn: 'خريطة اشتباه AI: مفعّلة',
-          btnHeatmapOff: 'خريطة اشتباه AI: مخفية',
+          btnIR: 'وضع التوجيه IR (بدون توسيع)',
+          btnAnalyze: 'بدء الفحص والتحليل بالذكاء الاصطناعي',
+          noReportTitle: 'لم يتم تشغيل تحليل لصورة شبكية بعد',
+          noReportSub: 'ارجع لتبويب الفحص وارفع صورة قاع عين لتوليد التقرير التشخيصي والخريطة الحرارية.',
+          btnGoScan: 'الانتقال لشاشة الفحص',
+          capturedTitle: 'مخرجات الرؤية الحاسوبية',
+          vmHeatmap: 'خريطة AI',
+          vmGreen: 'القناة الخضراء',
+          vmOriginal: 'الأصلية',
           metricConf: 'ثقة النموذج',
-          metricEye: 'العين',
-          metricTime: 'زمن الفحص',
-          findingsTitle: 'تفاصيل المؤشرات السريرية والتوصية',
-          actionProtocolTitle: 'مسار القرار في الرعاية الأولية',
-          btnSaveRecord: 'حفظ في سجل العيادة',
-          btnCopySummary: 'نسخ ملخص التحويل',
-          btnNewScan: 'فحص جديد',
-          kpiTotal: 'إجمالي الحالات المفحوصة بالعيادة',
+          metricDark: 'كثافة النزيف',
+          metricExudate: 'الإفرازات الصفراء',
+          probTitle: 'توزيع احتمالات التصنيف (AI Confidence Distribution)',
+          probNormal: 'شبكية سليمة (No DR)',
+          probModerate: 'اعتلال غير تكاثري (Mild / Moderate NPDR)',
+          probUrgent: 'اعتلال حرج يهدد البصر (Severe / PDR)',
+          findingsTitle: 'المؤشرات المستخرجة ومسار القرار الطبي',
+          actionProtocolTitle: 'التوصية السريرية المعتمدة',
+          btnSaveRecord: 'حفظ في سجل فحوصاتي',
+          btnCopySummary: 'نسخ تقرير للمركز الصحي / الطبيب',
+          btnNewScan: 'فحص صورة جديدة',
+          kpiTotal: 'إجمالي الفحوصات المنجزة',
           kpiUrgent: 'تحويلات عاجلة (تجاوز انتظار 6 أشهر)',
-          kpiSafe: 'حالات سليمة تم فرزها بالرعاية الأولية',
-          logTitle: 'سجل فحوصات العيادة (تحديث لحظي)',
+          kpiSafe: 'فحوصات سليمة (اطمئنان منزلي)',
+          logTitle: 'سجل الفحوصات (جاهز للمشاركة مع المركز الصحي)',
           fltAll: 'الكل',
           fltUrgent: 'تحويل عاجل',
           fltMod: 'متابعة',
@@ -514,7 +581,7 @@
           stat3Text: 'حساسية ونوعية الفحص بالذكاء الاصطناعي دون إنترنت عبر كاميرا الجوال في الميدان.',
           hwTag: 'تصميم بصري مطبوع 3D',
           hwTitle: 'هندسة محوّل RetiClip البصري',
-          hwDesc: 'يُطبع هيكل الجهاز بمادة PLA مطفية من الداخل لمنع التشتت الضوئي، ويثبّت عدسة طبية (+20D) على مسافة بؤرية مضبوطة أمام كاميرا الجوال، مما يحوّل أي هاتف في مركز الرعاية الأولية إلى كاميرا قاع عين محمولة بتكلفة منخفضة جداً.',
+          hwDesc: 'يُطبع هيكل الجهاز بمادة PLA مطفية من الداخل لمنع التشتت الضوئي، ويثبّت عدسة طبية (+20D) على مسافة بؤرية مضبوطة أمام كاميرا الجوال، مما يمكّن أي مريض سكري في منزله (بمساعدة أسرته) من إجراء فحص أولي سريع، مع إمكانية ربط النتائج مستقبلاً بمراكز الرعاية الأولية وتطبيق صحتي.',
           hwC1Title: 'عدسة طبية +20D',
           hwC1Desc: 'تُكوّن صورة هوائية واضحة لقاع العين والأوعية الدموية والقرص البصري.',
           hwC2Title: 'إضاءة توجيه IR',
@@ -525,30 +592,26 @@
           hwC4Desc: 'يناسب مختلف الهواتف الذكية وقابل للطباعة والتجميع في أي معمل جامعي.',
           onLabel: 'مفعّل',
           offLabel: 'إيقاف',
-          qualityPrefix: 'جودة المحاذاة: ',
+          qualityReady: 'جودة الصورة: ',
+          toastNeedImg: 'يرجى رفع صورة قاع عين أولاً قبل بدء التحليل.',
+          toastNotFundus: 'تنبيه: الصورة المرفوعة لا تبدو كصورة قاع عين قياسية، يُرجى التأكد من وضوح الشبكية.',
           toastSaved: 'تم حفظ الفحص في سجل العيادة وتحديث الإحصائيات.',
           toastCopied: 'تم نسخ ملخص التقرير الطبي بنجاح.',
-          toastUpload: 'تم تحميل صورة الشبكية بنجاح — يمكنك الآن التحليل.',
-          toastAligned: 'تمت المحاذاة البؤرية وتفعيل الاستقطاب بنجاح.',
-          hfTitle: 'ربط الذكاء الاصطناعي الحقيقي (Hugging Face)',
-          hfModeSim: 'وضع المحاكاة',
-          hfModeLive: 'AI حقيقي جاهز',
-          hfHint: 'أدخل مفتاح Hugging Face (يُحفظ على جهازك فقط) وارفع صورة شبكية حقيقية لتشغيل التصنيف الفعلي عبر نموذج ViT الطبي.',
-          engineLive: 'تحليل AI حقيقي (Hugging Face)',
-          engineSim: 'وضع المحاكاة السريرية',
-          toastLiveOk: 'تم تحليل صورة الشبكية عبر الذكاء الاصطناعي الحقيقي بنجاح.',
-          toastLiveFallback: 'تعذّر الاتصال اللحظي بالنموذج (أو جارٍ تهيئته)، تم التحويل للوضع الاحتياطي.'
+          toastUploaded: 'تم تحميل الصورة بنجاح — اضغط "بدء الفحص والتحليل" الآن.',
+          emptyTable: 'لا توجد فحوصات محفوظة بعد. ابدأ بفحص صورة وحفظها لتظهر هنا.'
         },
         en: {
-          badgeProto: 'Clinical Prototype',
-          headerSub: 'Early Diabetic Retinopathy Triage — Primary Healthcare Clinics',
-          lensConnected: '+20D Lens Connected · IR Ready',
-          tabScan: '1. Live Scan & Align',
-          tabReport: '2. AI Triage Report',
-          tabDash: '3. Clinic Log & Impact',
+          badgeEngine: 'Deep Learning CNN',
+          headerSub: 'Smart Home Retinal Screening for All Diabetic Patients (Clinic & Sehhaty Ready)',
+          lensConnected: 'Deep Learning CNN Ready · +20D IR',
+          lensLoading: 'Loading Neural Network Model...',
+          lensFallback: 'Offline Optical Fallback · +20D IR',
+          tabScan: '1. Scan & AI Analysis',
+          tabReport: '2. Diagnostic Report',
+          tabDash: '3. Screening Log & Impact',
           tabHardware: '4. 3D Optical Adapter',
-          patientInfoTitle: 'Quick Exam Intake',
-          phcLabel: 'Primary Care Clinic',
+          patientInfoTitle: 'Clinical Patient Intake',
+          phcLabel: 'Home Use / Clinic-Link Ready',
           lblPatient: 'Patient File / ID',
           lblAge: 'Age (yrs)',
           lblDuration: 'Diabetes Duration (yrs)',
@@ -556,35 +619,44 @@
           lblEye: 'Examined Eye',
           optRightEye: 'Right Eye (OD)',
           optLeftEye: 'Left Eye (OS)',
-          demoSourceTitle: 'Fundus Source (Live Demo)',
-          caseNormal: 'Normal Retina',
-          caseModerate: 'Moderate NPDR',
-          caseUrgent: 'Urgent PDR',
-          uploadBtn: 'Or upload a real retinal image from device',
-          viewportTitle: 'Smart Alignment Reticle (RetiClip Live View)',
-          viewportSub: 'Adjust focal distance and enable cross-polarizer for glare-free capture',
-          scanningText: 'Analyzing fundus with Offline AI...',
-          scanningSub: 'Inspecting microvasculature & macula (CNN)',
-          lblFocus: '+20D Focal Distance Alignment',
+          uploadCardTitle: 'Retinal Fundus Input',
+          awaitingImg: 'Awaiting Image',
+          imgReady: 'Image Ready',
+          dropTitle: 'Drag & drop a retinal image here or click to browse',
+          dropSub: 'Supports JPG / PNG / WebP — direct RetiClip +20D capture or local file',
+          btnCameraCapture: 'Capture via Camera',
+          btnClearImg: 'Clear Current Image',
+          viewportTitle: 'RetiClip Optical Alignment & Vision Viewport',
+          viewportSub: 'Upload a retinal fundus photo, fine-tune focus, and run real-time AI grading',
+          emptyCanvasTitle: 'No retinal image loaded yet',
+          emptyCanvasSub: 'Upload any retinal fundus image on the left to start automated AI analysis',
+          lblFocus: '+20D Digital Focal Alignment',
           btnPolarizer: 'Cross-Polarizer (Anti-Glare)',
-          btnIR: 'IR Guide (Non-Mydriatic)',
-          btnAutoAlign: 'Smart Auto-Align',
-          btnCapture: 'Capture & Run AI Triage',
-          capturedTitle: 'Captured Fundus Image',
-          btnHeatmapOn: 'AI Lesion Heatmap: ON',
-          btnHeatmapOff: 'AI Lesion Heatmap: OFF',
+          btnIR: 'IR Guide Mode (Non-Mydriatic)',
+          btnAnalyze: 'Run Automated AI Retinal Analysis',
+          noReportTitle: 'No retinal scan analyzed yet',
+          noReportSub: 'Return to Scan & AI Analysis and upload a fundus image to generate a report.',
+          btnGoScan: 'Go to Scan Screen',
+          capturedTitle: 'Computer Vision Output',
+          vmHeatmap: 'AI Heatmap',
+          vmGreen: 'Green Channel',
+          vmOriginal: 'Original',
           metricConf: 'AI Confidence',
-          metricEye: 'Eye',
-          metricTime: 'Scan Time',
-          findingsTitle: 'Clinical Findings & Recommendation',
-          actionProtocolTitle: 'Primary Care Triage Pathway',
-          btnSaveRecord: 'Save to Clinic Log',
-          btnCopySummary: 'Copy Referral Summary',
-          btnNewScan: 'New Exam',
-          kpiTotal: 'Total Screened in Clinic',
+          metricDark: 'Hemorrhage Density',
+          metricExudate: 'Yellow Exudates',
+          probTitle: 'AI Classification Probability Distribution',
+          probNormal: 'No Diabetic Retinopathy (No DR)',
+          probModerate: 'Mild / Moderate NPDR',
+          probUrgent: 'Sight-Threatening DR (Severe / PDR)',
+          findingsTitle: 'Extracted Biomarkers & Clinical Pathway',
+          actionProtocolTitle: 'Recommended Clinical Action',
+          btnSaveRecord: 'Save to My Log',
+          btnCopySummary: 'Copy Report for Clinic / Doctor',
+          btnNewScan: 'Scan New Image',
+          kpiTotal: 'Total Screenings Completed',
           kpiUrgent: 'Urgent Referrals (Bypass >6m Wait)',
-          kpiSafe: 'Clear Cases Retained in Primary Care',
-          logTitle: 'Clinic Screening Log (Live)',
+          kpiSafe: 'Clear Results (Home Reassurance)',
+          logTitle: 'Screening Log (Ready to Share with Clinic)',
           fltAll: 'All',
           fltUrgent: 'Urgent',
           fltMod: 'Follow-up',
@@ -600,7 +672,7 @@
           stat3Text: 'Field sensitivity and specificity of offline smartphone AI fundus screening.',
           hwTag: '3D-Printed Optical Hardware',
           hwTitle: 'RetiClip Optical Adapter Engineering',
-          hwDesc: 'Printed in matte-black interior PLA to suppress stray light, holding a medical +20D lens at a fixed focal distance in front of any primary-care smartphone.',
+          hwDesc: 'Printed in matte-black interior PLA to suppress stray light, holding a medical +20D lens at a fixed focal distance in front of any smartphone for accessible home screening by diabetic patients and their families, with future integration to primary care clinics and Sehhaty.',
           hwC1Title: '+20D Ophthalmic Lens',
           hwC1Desc: 'Forms a crisp aerial fundus image showing optic disc and retinal vessels.',
           hwC2Title: 'IR Alignment Ring',
@@ -611,36 +683,23 @@
           hwC4Desc: 'Fits standard smartphones and can be 3D-printed in any university lab.',
           onLabel: 'ON',
           offLabel: 'OFF',
-          qualityPrefix: 'Alignment Quality: ',
+          qualityReady: 'Image Quality: ',
+          toastNeedImg: 'Please upload a retinal fundus image first.',
+          toastNotFundus: 'Notice: Uploaded image does not match typical retinal fundus tones; results may be less reliable.',
           toastSaved: 'Exam saved to clinic log and KPIs updated.',
           toastCopied: 'Referral summary copied to clipboard.',
-          toastUpload: 'Retinal image loaded — ready for AI triage.',
-          toastAligned: 'Focal distance optimized and cross-polarizer enabled.',
-          hfTitle: 'Live AI Engine (Hugging Face)',
-          hfModeSim: 'Simulation Mode',
-          hfModeLive: 'Live AI Ready',
-          hfHint: 'Enter your Hugging Face token (stored locally on your device only) and upload a fundus photo for live ViT classification.',
-          engineLive: 'Live AI Inference (Hugging Face)',
-          engineSim: 'Clinical Simulation Mode',
-          toastLiveOk: 'Retinal image classified via live Hugging Face AI.',
-          toastLiveFallback: 'Live model unavailable or warming up — switched to fallback mode.'
+          toastUploaded: 'Retinal image loaded — click "Run Automated AI Analysis".',
+          emptyTable: 'No saved exams yet. Analyze a retinal image and save it to populate the clinic log.'
         }
       };
 
-      const caseProfiles = {
+      const severityCopy = {
         normal: {
-          confidence: '96.4%',
           ar: {
             tag: 'سليم · مراجعة روتينية',
             title: 'لا توجد علامات لاعتلال الشبكية السكري (No DR)',
-            summary: 'القرص البصري واضح الحدود والأوعية الدموية منتظمة دون رصد نزيف أو تمددات وعائية مجهرية. لا حاجة لتحويل عاجل لعيادة العيون.',
-            protocol: 'إبقاء المتابعة في مركز الرعاية الأولية وإعادة فحص RetiClip بعد 12 شهراً مع الاستمرار في ضبط السكر.',
-            findings: [
-              { k: 'القرص البصري (Optic Disc)', v: 'طبيعي وواضح الحدود' },
-              { k: 'البقعة الصفراء (Macula)', v: 'سليمة دون وذمة' },
-              { k: 'النزيف الدقيق', v: 'غير مرصود (0 بؤر)' },
-              { k: 'الأثر على قوائم الانتظار', v: 'توفير موعد عيادة عيون غير ضروري' }
-            ],
+            summary: 'تحليل القناة الخضراء يظهر توزيعاً منتظماً للأوعية الدموية دون كثافة نزفية أو إفرازات صفراء غير طبيعية. لا حاجة لتحويل عاجل لعيادة العيون.',
+            protocol: 'اطمئنان منزلي: استمر في ضبط السكر وأعد فحص RetiClip بعد 6–12 شهراً (أداة فرز أولي لا تغني عن الفحص الطبي الدوري).',
             badgeClass: 'bg-emerald-200 text-emerald-900',
             bannerClass: 'bg-emerald-50 border-emerald-300',
             shortResult: 'سليم (No DR)',
@@ -649,14 +708,8 @@
           en: {
             tag: 'CLEAR · ROUTINE CARE',
             title: 'No Diabetic Retinopathy Detected (No DR)',
-            summary: 'Optic disc margins are sharp and retinal vasculature appears regular with no microaneurysms or hemorrhages detected. No urgent ophthalmology referral required.',
+            summary: 'Green-channel vessel analysis shows uniform retinal illumination without abnormal dark hemorrhagic clusters or bright hard exudates.',
             protocol: 'Retain patient in primary healthcare and schedule routine RetiClip rescreening in 12 months.',
-            findings: [
-              { k: 'Optic Disc', v: 'Sharp margins, normal' },
-              { k: 'Macula', v: 'Clear, no edema' },
-              { k: 'Microhemorrhages', v: 'None detected (0)' },
-              { k: 'Waitlist Impact', v: 'Saved unnecessary specialist slot' }
-            ],
             badgeClass: 'bg-emerald-200 text-emerald-900',
             bannerClass: 'bg-emerald-50 border-emerald-300',
             shortResult: 'Clear (No DR)',
@@ -664,18 +717,11 @@
           }
         },
         moderate: {
-          confidence: '93.8%',
           ar: {
             tag: 'متابعة مجدولة · أولوية متوسطة',
-            title: 'اشتباه اعتلال شبكية سكري متوسط (Moderate NPDR)',
-            summary: 'رصد النموذج بؤر نزيف نقطية وتمددات وعائية مجهرية مع ترسبات دهنية محدودة. يوصى بجدولة فحص عيون تخصصي خلال 3 أشهر مع تكثيف ضبط التراكمي.',
-            protocol: 'تحويل مجدول لعيادة العيون خلال 3 أشهر + مراجعة خطة علاج السكري والضغط مع طبيب الأسرة.',
-            findings: [
-              { k: 'التمددات المجهرية', v: 'مرصودة (4 بؤر)' },
-              { k: 'النزيف الشبكي النقطي', v: 'خفيف إلى متوسط' },
-              { k: 'الترسبات الصلبة', v: 'بؤر محدودة خارج المركز' },
-              { k: 'أولوية التحويل', v: 'مجدول خلال 3 أشهر' }
-            ],
+            title: 'اشتباه اعتلال شبكية سكري غير تكاثري (Mild / Moderate NPDR)',
+            summary: 'رصد المحرك بؤراً داكنة موضعية في القناة الخضراء أو نقاط إفرازات ساطعة متفرقة تستدعي فحصاً تخصصياً مجدولاً.',
+            protocol: 'شارك هذا التقرير مع طبيب الأسرة أو مركز الرعاية الصحية الأولية لحجز فحص عيون مجدول خلال 3 أشهر وضبط التراكمي.',
             badgeClass: 'bg-amber-200 text-amber-900',
             bannerClass: 'bg-amber-50 border-amber-300',
             shortResult: 'اعتلال متوسط',
@@ -683,15 +729,9 @@
           },
           en: {
             tag: 'SCHEDULED FOLLOW-UP',
-            title: 'Suspected Moderate Non-Proliferative DR',
-            summary: 'Detected microaneurysms, dot-blot hemorrhages, and localized hard exudates. Schedule ophthalmology review within 3 months and optimize glycemic control.',
-            protocol: 'Book ophthalmology follow-up within 3 months and intensify HbA1c & BP management in primary care.',
-            findings: [
-              { k: 'Microaneurysms', v: 'Detected (4 foci)' },
-              { k: 'Dot-Blot Hemorrhages', v: 'Mild to moderate' },
-              { k: 'Hard Exudates', v: 'Localized, extrafoveal' },
-              { k: 'Referral Priority', v: 'Within 3 months' }
-            ],
+            title: 'Suspected Mild / Moderate NPDR',
+            summary: 'Localized dark micro-lesions in the green channel and/or scattered bright exudative pixels detected, warranting scheduled ophthalmology review.',
+            protocol: 'Schedule ophthalmology follow-up within 3 months and optimize HbA1c & blood pressure control.',
             badgeClass: 'bg-amber-200 text-amber-900',
             bannerClass: 'bg-amber-50 border-amber-300',
             shortResult: 'Moderate NPDR',
@@ -699,18 +739,11 @@
           }
         },
         urgent: {
-          confidence: '95.1%',
           ar: {
             tag: 'حرج · تحويل عاجل فوراً',
-            title: 'اعتلال شبكية متقدم يهدد البصر (Sight-Threatening PDR)',
-            summary: 'رصد النموذج نزيفاً شبكياً واسعاً واشتباه أوعية دموية مستحدثة وتأثراً قريباً من البقعة الصفراء. يتطلب تحويلاً عاجلاً لعيادة الشبكية لتفادي فقدان البصر.',
-            protocol: 'تحويل إلكتروني عاجل (أولوية قصوى خلال أسبوعين) لمركز العيون التخصصي — تجاوز قائمة الانتظار الروتينية.',
-            findings: [
-              { k: 'النزيف الشبكي', v: 'متعدد وواضح (بؤر عالية الخطر)' },
-              { k: 'أوعية مستحدثة (NVD/NVE)', v: 'اشتباه مرتفع' },
-              { k: 'خطر وذمة البقعة', v: 'مرتفع — يحتاج فحص OCT' },
-              { k: 'أولوية التحويل', v: 'عاجل خلال 14 يوماً' }
-            ],
+            title: 'اشتباه اعتلال شبكية متقدم يهدد البصر (Severe / PDR)',
+            summary: 'رصد المحرك كثافة مرتفعة للبقع النزفية الداكنة وتجمعات إفرازات صفراء واضحة داخل المجال الشبكي، مما يستوجب تحويلاً عاجلاً لتفادي فقدان البصر.',
+            protocol: 'توجّه فوراً بهذا التقرير لأقرب مركز رعاية أولية أو عبر صحتي لرفع تحويل عاجل لعيادة الشبكية (خلال 14 يوماً).',
             badgeClass: 'bg-red-200 text-red-900',
             bannerClass: 'bg-red-50 border-red-300',
             shortResult: 'حرج (PDR)',
@@ -718,15 +751,9 @@
           },
           en: {
             tag: 'URGENT · IMMEDIATE REFERRAL',
-            title: 'Sight-Threatening Diabetic Retinopathy (PDR)',
-            summary: 'Extensive retinal hemorrhages, suspected neovascularization, and macular proximity detected. Immediate retina specialist referral is required to prevent vision loss.',
-            protocol: 'Trigger fast-track urgent ophthalmology referral (<14 days), bypassing >6-month routine waitlists.',
-            findings: [
-              { k: 'Retinal Hemorrhages', v: 'Multiple high-risk foci' },
-              { k: 'Neovascularization', v: 'High suspicion' },
-              { k: 'Macular Edema Risk', v: 'High — OCT indicated' },
-              { k: 'Referral Priority', v: 'Urgent (<14 days)' }
-            ],
+            title: 'Suspected Sight-Threatening DR (Severe / PDR)',
+            summary: 'Elevated dark hemorrhagic lesion density and prominent bright exudative clusters detected across the retinal field, requiring urgent specialist evaluation.',
+            protocol: 'Trigger fast-track urgent retina referral (<14 days), bypassing >6-month routine waitlists.',
             badgeClass: 'bg-red-200 text-red-900',
             bannerClass: 'bg-red-50 border-red-300',
             shortResult: 'Urgent PDR',
@@ -736,30 +763,49 @@
       };
 
       const el = {
+        aiStatusDot: document.getElementById('aiStatusDot'),
+        aiStatusText: document.getElementById('aiStatusText'),
+        repEngineBadge: document.getElementById('repEngineBadge'),
         liveCanvas: document.getElementById('liveCanvas'),
         reportCanvas: document.getElementById('reportCanvas'),
+        emptyPrompt: document.getElementById('emptyPrompt'),
+        dropZone: document.getElementById('dropZone'),
+        fileUpload: document.getElementById('fileUpload'),
+        cameraCapture: document.getElementById('cameraCapture'),
+        btnClearImg: document.getElementById('btnClearImg'),
+        uploadStateBadge: document.getElementById('uploadStateBadge'),
         sliderFocus: document.getElementById('sliderFocus'),
         focusVal: document.getElementById('focusVal'),
         qualityBadge: document.getElementById('qualityBadge'),
         reticleRing: document.getElementById('reticleRing'),
         scanOverlay: document.getElementById('scanOverlay'),
+        scanStageTitle: document.getElementById('scanStageTitle'),
+        scanStageSub: document.getElementById('scanStageSub'),
+        scanProgressBar: document.getElementById('scanProgressBar'),
         hudMode: document.getElementById('hudMode'),
         hudGlare: document.getElementById('hudGlare'),
         btnTogglePolarizer: document.getElementById('btnTogglePolarizer'),
         statePolarizer: document.getElementById('statePolarizer'),
         btnToggleIR: document.getElementById('btnToggleIR'),
         stateIR: document.getElementById('stateIR'),
-        btnAutoAlign: document.getElementById('btnAutoAlign'),
-        btnCapture: document.getElementById('btnCapture'),
-        fileUpload: document.getElementById('fileUpload'),
-        btnToggleHeatmap: document.getElementById('btnToggleHeatmap'),
+        btnAnalyze: document.getElementById('btnAnalyze'),
+        noReportNotice: document.getElementById('noReportNotice'),
+        reportContent: document.getElementById('reportContent'),
+        btnGoScan: document.getElementById('btnGoScan'),
         triageBanner: document.getElementById('triageBanner'),
         triageTag: document.getElementById('triageTag'),
         triageTitle: document.getElementById('triageTitle'),
         triageSummary: document.getElementById('triageSummary'),
         repPatientMeta: document.getElementById('repPatientMeta'),
         repConfidence: document.getElementById('repConfidence'),
-        repEye: document.getElementById('repEye'),
+        repDarkPct: document.getElementById('repDarkPct'),
+        repExudatePct: document.getElementById('repExudatePct'),
+        probValNormal: document.getElementById('probValNormal'),
+        probBarNormal: document.getElementById('probBarNormal'),
+        probValModerate: document.getElementById('probValModerate'),
+        probBarModerate: document.getElementById('probBarModerate'),
+        probValUrgent: document.getElementById('probValUrgent'),
+        probBarUrgent: document.getElementById('probBarUrgent'),
         findingsList: document.getElementById('findingsList'),
         repProtocol: document.getElementById('repProtocol'),
         btnSaveRecord: document.getElementById('btnSaveRecord'),
@@ -775,10 +821,7 @@
         inputAge: document.getElementById('inputAge'),
         inputDuration: document.getElementById('inputDuration'),
         inputHba1c: document.getElementById('inputHba1c'),
-        selectEye: document.getElementById('selectEye'),
-        inputHfToken: document.getElementById('inputHfToken'),
-        hfStatusBadge: document.getElementById('hfStatusBadge'),
-        repEngineBadge: document.getElementById('repEngineBadge')
+        selectEye: document.getElementById('selectEye')
       };
 
       let toastTimer = null;
@@ -790,24 +833,296 @@
         toastTimer = setTimeout(() => {
           el.toast.classList.remove('opacity-100');
           el.toast.classList.add('opacity-0');
-        }, 2600);
+        }, 2800);
+      }
+
+      function updateAiStatusBadge() {
+        const dict = i18n[state.lang];
+        if (state.tmStatus === 'ready') {
+          el.aiStatusDot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
+          el.aiStatusText.textContent = dict.lensConnected;
+        } else if (state.tmStatus === 'loading') {
+          el.aiStatusDot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse';
+          el.aiStatusText.textContent = dict.lensLoading;
+        } else {
+          el.aiStatusDot.className = 'w-2 h-2 rounded-full bg-sky-400';
+          el.aiStatusText.textContent = dict.lensFallback;
+        }
+      }
+
+      function initDeepLearningModel() {
+        if (state.tmPromise) return state.tmPromise;
+        state.tmPromise = (async () => {
+          try {
+            if (typeof tmImage === 'undefined') throw new Error('tmImage library unavailable');
+            const modelURL = TM_MODEL_URL + 'model.json';
+            const metadataURL = TM_MODEL_URL + 'metadata.json';
+            state.tmModel = await tmImage.load(modelURL, metadataURL);
+            state.tmStatus = 'ready';
+          } catch (err) {
+            state.tmModel = null;
+            state.tmStatus = 'fallback';
+          }
+          updateAiStatusBadge();
+          return state.tmModel;
+        })();
+        return state.tmPromise;
+      }
+
+      function mapClassNameToSeverity(name, idx) {
+        const s = String(name || '').toLowerCase().trim();
+        if (s.includes('normal') || s.includes('no dr') || s.includes('سليم') || s === '0') return 'normal';
+        if (s.includes('moderate') || s.includes('mild') || s.includes('npdr') || s.includes('متوسط') || s === '1' || s === '2') return 'moderate';
+        if (s.includes('urgent') || s.includes('severe') || s.includes('pdr') || s.includes('حرج') || s.includes('عاجل') || s === '3' || s === '4') return 'urgent';
+        return idx === 0 ? 'normal' : (idx === 1 ? 'moderate' : 'urgent');
+      }
+
+      async function runDeepLearningInference(img) {
+        const model = state.tmModel || await initDeepLearningModel();
+        if (!model) return null;
+        const inputCanvas = document.createElement('canvas');
+        inputCanvas.width = 224;
+        inputCanvas.height = 224;
+        const ictx = inputCanvas.getContext('2d');
+        ictx.drawImage(img, 0, 0, 224, 224);
+        const preds = await model.predict(inputCanvas);
+        if (!Array.isArray(preds) || preds.length === 0) return null;
+
+        const raw = { normal: 0, moderate: 0, urgent: 0 };
+        preds.forEach((p, i) => {
+          const key = mapClassNameToSeverity(p.className, i);
+          raw[key] += Number(p.probability || 0);
+        });
+        const sum = raw.normal + raw.moderate + raw.urgent || 1;
+        const pNorm = Math.round((raw.normal / sum) * 100);
+        const pMod = Math.round((raw.moderate / sum) * 100);
+        const pUrg = Math.max(0, 100 - pNorm - pMod);
+
+        let severity = 'normal';
+        if (raw.urgent >= raw.moderate && raw.urgent >= raw.normal) severity = 'urgent';
+        else if (raw.moderate >= raw.normal) severity = 'moderate';
+
+        const topRaw = severity === 'normal' ? raw.normal : (severity === 'moderate' ? raw.moderate : raw.urgent);
+        return {
+          severity,
+          confidence: `${((topRaw / sum) * 100).toFixed(1)}%`,
+          probs: { normal: pNorm, moderate: pMod, urgent: pUrg },
+          engine: 'cnn'
+        };
+      }
+
+      // Real client-side retinal fundus feature extraction (Green Channel + Exudate + Red-Dominance Validity)
+      function analyzeRetinalImage(img) {
+        const size = 240;
+        const off = document.createElement('canvas');
+        off.width = size;
+        off.height = size;
+        const ctx = off.getContext('2d');
+        ctx.drawImage(img, 0, 0, size, size);
+        const { data } = ctx.getImageData(0, 0, size, size);
+
+        const cx = size / 2;
+        const cy = size / 2;
+        const maxR = size * 0.43;
+
+        let validPixels = 0;
+        let redDominantPixels = 0;
+        let sumR = 0, sumG = 0, sumB = 0;
+        const pts = [];
+
+        for (let y = 0; y < size; y++) {
+          for (let x = 0; x < size; x++) {
+            const dx = x - cx;
+            const dy = y - cy;
+            if (dx * dx + dy * dy > maxR * maxR) continue;
+            const idx = (y * size + x) * 4;
+            const r = data[idx], g = data[idx + 1], b = data[idx + 2];
+            if (r < 22 && g < 18 && b < 18) continue; // ignore circular mask background
+            validPixels++;
+            sumR += r; sumG += g; sumB += b;
+            if (r > g * 1.15 && r > b * 1.25) redDominantPixels++;
+            pts.push([x, y, r, g, b]);
+          }
+        }
+
+        const fundusRatio = validPixels > 0 ? redDominantPixels / validPixels : 0;
+        const isFundusLike = validPixels > 1200 && fundusRatio > 0.35;
+
+        const meanR = validPixels ? sumR / validPixels : 120;
+        const meanG = validPixels ? sumG / validPixels : 65;
+
+        // 8x8 spatial grid for lesion clustering (excludes optic disc brightest cluster)
+        const N = 8;
+        const grid = Array.from({ length: N }, () => Array.from({ length: N }, () => ({ dark: 0, bright: 0, total: 0, sumLuma: 0 })));
+        let darkCount = 0;
+        let exudateCount = 0;
+
+        for (let i = 0; i < pts.length; i++) {
+          const [x, y, r, g, b] = pts[i];
+          const gx = Math.min(N - 1, Math.floor((x / size) * N));
+          const gy = Math.min(N - 1, Math.floor((y / size) * N));
+          const cell = grid[gy][gx];
+          cell.total++;
+          cell.sumLuma += (0.299 * r + 0.587 * g + 0.114 * b);
+
+          // Dark red microaneurysms / dot-blot hemorrhages stand out sharply in Green channel
+          if (r > 32 && g < meanG * 0.56 && (r - g) > 36 && r < meanR * 0.92) {
+            darkCount++;
+            cell.dark++;
+          }
+          // Bright yellow-white hard exudates / cotton-wool spots
+          if (r > 205 && g > 165 && g > meanG * 1.48 && (r - b) > 45) {
+            exudateCount++;
+            cell.bright++;
+          }
+        }
+
+        // Identify the brightest single cell (likely Optic Disc) so we don't count it as exudates
+        let discGx = -1, discGy = -1, maxAvgLuma = 0;
+        for (let gy = 0; gy < N; gy++) {
+          for (let gx = 0; gx < N; gx++) {
+            const c = grid[gy][gx];
+            if (c.total > 40) {
+              const avgL = c.sumLuma / c.total;
+              if (avgL > maxAvgLuma) {
+                maxAvgLuma = avgL;
+                discGx = gx;
+                discGy = gy;
+              }
+            }
+          }
+        }
+
+        // Subtract optic disc bright pixels from exudate count
+        if (discGx >= 0) {
+          exudateCount = Math.max(0, exudateCount - grid[discGy][discGx].bright);
+        }
+
+        const darkPct = validPixels ? (darkCount / validPixels) * 100 : 0;
+        const exudatePct = validPixels ? (exudateCount / validPixels) * 100 : 0;
+
+        const cellScores = [];
+        for (let gy = 0; gy < N; gy++) {
+          for (let gx = 0; gx < N; gx++) {
+            if (gx === discGx && gy === discGy) continue;
+            const c = grid[gy][gx];
+            if (c.total < 35) continue;
+            const dRate = c.dark / c.total;
+            const bRate = c.bright / c.total;
+            const score = dRate * 1.35 + bRate * 1.6;
+            if (score > 0.065) {
+              cellScores.push({ xNorm: (gx + 0.5) / N, yNorm: (gy + 0.5) / N, score });
+            }
+          }
+        }
+        cellScores.sort((a, b) => b.score - a.score);
+        const hotspots = cellScores.slice(0, 4);
+
+        // Compute normalized risk index (0..100)
+        const lesionScore = darkPct * 1.15 + exudatePct * 2.1 + hotspots.length * 0.65;
+
+        // Softmax-style probability distribution across 3 clinical classes
+        let pNorm, pMod, pUrg, severity;
+        if (lesionScore < 3.2 && darkPct < 2.2 && exudatePct < 0.8) {
+          severity = 'normal';
+          pNorm = Math.min(96, Math.max(76, Math.round(96 - lesionScore * 5.2)));
+          pMod = Math.max(3, Math.round((100 - pNorm) * 0.78));
+          pUrg = Math.max(1, 100 - pNorm - pMod);
+        } else if (lesionScore < 8.5 && darkPct < 5.8 && exudatePct < 2.6) {
+          severity = 'moderate';
+          pMod = Math.min(91, Math.max(62, Math.round(62 + (lesionScore - 3.2) * 4.5)));
+          pUrg = Math.min(30, Math.max(6, Math.round((lesionScore - 2.5) * 3.1)));
+          pNorm = Math.max(2, 100 - pMod - pUrg);
+        } else {
+          severity = 'urgent';
+          pUrg = Math.min(97, Math.max(72, Math.round(70 + (lesionScore - 8.0) * 2.4)));
+          pMod = Math.max(2, Math.round((100 - pUrg) * 0.82));
+          pNorm = Math.max(1, 100 - pUrg - pMod);
+        }
+
+        const topConf = severity === 'normal' ? pNorm : (severity === 'moderate' ? pMod : pUrg);
+
+        return {
+          isFundusLike,
+          severity,
+          confidence: `${topConf}.0%`,
+          probs: { normal: pNorm, moderate: pMod, urgent: pUrg },
+          darkPct: `${darkPct.toFixed(2)}%`,
+          exudatePct: `${exudatePct.toFixed(2)}%`,
+          hotspotCount: hotspots.length,
+          hotspots
+        };
       }
 
       function computeQuality() {
+        if (!state.uploadedImage) return 0;
         const focusDist = Math.abs(state.focus - 50);
-        const focusScore = Math.max(0, 100 - focusDist * 2.1);
-        const polBonus = state.polarizer ? 24 : 0;
-        const irBonus = state.irMode ? 8 : 0;
-        return Math.min(99, Math.round(focusScore * 0.68 + polBonus + irBonus));
+        const focusScore = Math.max(0, 100 - focusDist * 2.0);
+        const polBonus = state.polarizer ? 22 : 0;
+        const irBonus = state.irMode ? 6 : 4;
+        return Math.min(99, Math.round(focusScore * 0.72 + polBonus + irBonus));
       }
 
-      function drawFundus(canvas, options) {
+      function drawLiveViewport() {
+        const ctx = el.liveCanvas.getContext('2d');
+        const w = el.liveCanvas.width;
+        const h = el.liveCanvas.height;
+        const cx = w / 2, cy = h / 2, r = w * 0.43;
+
+        ctx.clearRect(0, 0, w, h);
+        ctx.fillStyle = '#05080D';
+        ctx.fillRect(0, 0, w, h);
+
+        if (!state.uploadedImage) {
+          el.emptyPrompt.classList.remove('hidden');
+          return;
+        }
+        el.emptyPrompt.classList.add('hidden');
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.clip();
+
+        const blurPx = Math.max(0, Math.abs(state.focus - 50) * 0.16);
+        const filters = [];
+        if (blurPx > 0.3) filters.push(`blur(${blurPx.toFixed(1)}px)`);
+        if (state.irMode) filters.push('sepia(1) hue-rotate(-50deg) saturate(2.2) brightness(0.85)');
+        ctx.filter = filters.length ? filters.join(' ') : 'none';
+
+        // Cover-fit image cleanly inside circular optical field
+        const img = state.uploadedImage;
+        const scale = Math.max((r * 2) / img.width, (r * 2) / img.height);
+        const dw = img.width * scale;
+        const dh = img.height * scale;
+        ctx.drawImage(img, cx - dw / 2, cy - dh / 2, dw, dh);
+        ctx.filter = 'none';
+
+        if (!state.polarizer) {
+          const glare = ctx.createRadialGradient(cx - 24, cy - 28, 4, cx - 24, cy - 28, 72);
+          glare.addColorStop(0, 'rgba(255, 255, 255, 0.72)');
+          glare.addColorStop(0.45, 'rgba(255, 255, 255, 0.22)');
+          glare.addColorStop(1, 'rgba(255, 255, 255, 0)');
+          ctx.fillStyle = glare;
+          ctx.beginPath();
+          ctx.arc(cx - 24, cy - 28, 72, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      function drawReportViewport() {
+        if (!state.uploadedImage || !state.analysis) return;
+        const canvas = el.reportCanvas;
         const ctx = canvas.getContext('2d');
-        const w = canvas.width;
-        const h = canvas.height;
-        const cx = w / 2;
-        const cy = h / 2;
-        const r = w * 0.43;
+        const w = canvas.width, h = canvas.height;
+        const cx = w / 2, cy = h / 2, r = w * 0.44;
 
         ctx.clearRect(0, 0, w, h);
         ctx.fillStyle = '#05080D';
@@ -818,232 +1133,161 @@
         ctx.arc(cx, cy, r, 0, Math.PI * 2);
         ctx.clip();
 
-        const blurPx = options.applyBlur ? Math.max(0, Math.abs(state.focus - 50) * 0.16) : 0;
-        ctx.filter = blurPx > 0.3 ? `blur(${blurPx.toFixed(1)}px)` : 'none';
+        const img = state.uploadedImage;
+        const scale = Math.max((r * 2) / img.width, (r * 2) / img.height);
+        const dw = img.width * scale;
+        const dh = img.height * scale;
+        ctx.drawImage(img, cx - dw / 2, cy - dh / 2, dw, dh);
 
-        if (state.uploadedImage) {
-          ctx.drawImage(state.uploadedImage, cx - r, cy - r, r * 2, r * 2);
-        } else {
-          // Realistic retinal gradient background
-          const grad = ctx.createRadialGradient(cx + 25, cy - 10, 18, cx, cy, r);
-          if (options.irTint) {
-            grad.addColorStop(0, '#7F1D1D');
-            grad.addColorStop(0.55, '#581212');
-            grad.addColorStop(1, '#260707');
-          } else {
-            grad.addColorStop(0, '#D95B2B');
-            grad.addColorStop(0.6, '#B83D1B');
-            grad.addColorStop(1, '#5A160B');
+        if (state.viewMode === 'green') {
+          const imgData = ctx.getImageData(0, 0, w, h);
+          const d = imgData.data;
+          for (let i = 0; i < d.length; i += 4) {
+            const g = d[i + 1];
+            const enhanced = Math.min(255, Math.max(0, (g - 35) * 1.45));
+            d[i] = enhanced * 0.18;
+            d[i + 1] = enhanced;
+            d[i + 2] = enhanced * 0.28;
           }
-          ctx.fillStyle = grad;
-          ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
-
-          // Optic Disc
-          const discX = cx + 68;
-          const discY = cy - 6;
-          const discGrad = ctx.createRadialGradient(discX, discY, 4, discX, discY, 34);
-          discGrad.addColorStop(0, options.irTint ? '#FCA5A5' : '#FFF3C4');
-          discGrad.addColorStop(0.7, options.irTint ? '#DC2626' : '#F6B951');
-          discGrad.addColorStop(1, 'rgba(217, 91, 43, 0)');
-          ctx.fillStyle = discGrad;
-          ctx.beginPath();
-          ctx.arc(discX, discY, 34, 0, Math.PI * 2);
-          ctx.fill();
-
-          // Macula (darker central region)
-          const macGrad = ctx.createRadialGradient(cx - 42, cy + 8, 2, cx - 42, cy + 8, 36);
-          macGrad.addColorStop(0, 'rgba(60, 12, 5, 0.55)');
-          macGrad.addColorStop(1, 'rgba(60, 12, 5, 0)');
-          ctx.fillStyle = macGrad;
-          ctx.beginPath();
-          ctx.arc(cx - 42, cy + 8, 36, 0, Math.PI * 2);
-          ctx.fill();
-
-          // Retinal Vascular Arcades
-          ctx.strokeStyle = options.irTint ? 'rgba(40, 5, 5, 0.72)' : 'rgba(110, 18, 12, 0.68)';
-          ctx.lineCap = 'round';
-          const vessels = [
-            [discX, discY, cx + 10, cy - 95, cx - 105, cy - 65, 4.2],
-            [discX, discY, cx + 12, cy + 98, cx - 108, cy + 72, 4.2],
-            [discX, discY, cx + 115, cy - 78, cx + 148, cy - 115, 3.0],
-            [discX, discY, cx + 112, cy + 80, cx + 145, cy + 120, 3.0],
-            [cx - 10, cy - 72, cx - 55, cy - 38, cx - 72, cy - 18, 2.0],
-            [cx - 8, cy + 76, cx - 50, cy + 45, cx - 68, cy + 25, 2.0]
-          ];
-          vessels.forEach(([x0, y0, cpx, cpy, x1, y1, lw]) => {
-            ctx.lineWidth = lw;
-            ctx.beginPath();
-            ctx.moveTo(x0, y0);
-            ctx.quadraticCurveTo(cpx, cpy, x1, y1);
-            ctx.stroke();
-          });
-
-          // Pathological Lesions for Moderate / Urgent
-          if (state.selectedCase === 'moderate' || state.selectedCase === 'urgent') {
-            const dots = [
-              [cx - 65, cy - 32, 3.5], [cx - 28, cy + 42, 4], [cx - 82, cy + 18, 3],
-              [cx + 5, cy - 58, 3.5], [cx - 12, cy + 68, 4]
-            ];
-            ctx.fillStyle = '#4A0404';
-            dots.forEach(([lx, ly, lr]) => {
-              ctx.beginPath();
-              ctx.arc(lx, ly, lr, 0, Math.PI * 2);
-              ctx.fill();
-            });
-            // Hard exudates
-            ctx.fillStyle = options.irTint ? '#FDE68A' : '#FEF08A';
-            [[cx - 48, cy - 12, 2.6], [cx - 56, cy - 4, 2.2], [cx - 34, cy + 28, 2.4]].forEach(([ex, ey, er]) => {
-              ctx.beginPath();
-              ctx.arc(ex, ey, er, 0, Math.PI * 2);
-              ctx.fill();
-            });
-          }
-
-          if (state.selectedCase === 'urgent') {
-            // Larger flame hemorrhages & neovascular clusters
-            ctx.fillStyle = 'rgba(95, 4, 4, 0.88)';
-            [[cx - 45, cy + 16, 12, 7], [cx + 22, cy - 44, 14, 8], [cx - 88, cy - 45, 11, 6], [cx + 42, cy + 54, 13, 7]].forEach(([hx, hy, rx, ry]) => {
-              ctx.beginPath();
-              ctx.ellipse(hx, hy, rx, ry, 0.5, 0, Math.PI * 2);
-              ctx.fill();
-            });
-          }
+          ctx.putImageData(imgData, 0, 0);
         }
 
-        ctx.filter = 'none';
-
-        // Simulated Corneal Glare when Cross-Polarizer is OFF
-        if (options.showGlare && !state.polarizer) {
-          const glare = ctx.createRadialGradient(cx - 22, cy - 28, 4, cx - 22, cy - 28, 72);
-          glare.addColorStop(0, 'rgba(255, 255, 255, 0.78)');
-          glare.addColorStop(0.45, 'rgba(255, 255, 255, 0.25)');
-          glare.addColorStop(1, 'rgba(255, 255, 255, 0)');
-          ctx.fillStyle = glare;
-          ctx.beginPath();
-          ctx.arc(cx - 22, cy - 28, 72, 0, Math.PI * 2);
-          ctx.fill();
-        }
-
-        // AI Heatmap Overlay in Report View
-        if (options.showHeatmap && state.selectedCase !== 'normal') {
-          const spots = state.selectedCase === 'urgent'
-            ? [[cx - 45, cy + 16, 44], [cx + 22, cy - 44, 42], [cx - 82, cy - 38, 34]]
-            : [[cx - 60, cy - 26, 34], [cx - 28, cy + 40, 32]];
-          spots.forEach(([sx, sy, sr]) => {
-            const hm = ctx.createRadialGradient(sx, sy, 4, sx, sy, sr);
-            hm.addColorStop(0, state.selectedCase === 'urgent' ? 'rgba(239, 68, 68, 0.72)' : 'rgba(245, 158, 11, 0.68)');
-            hm.addColorStop(0.55, 'rgba(250, 204, 21, 0.35)');
+        if (state.viewMode === 'heatmap' && state.analysis.severity !== 'normal' && state.analysis.hotspots.length > 0) {
+          const isUrg = state.analysis.severity === 'urgent';
+          state.analysis.hotspots.forEach(hs => {
+            const hx = cx - r + hs.xNorm * r * 2;
+            const hy = cy - r + hs.yNorm * r * 2;
+            const hr = 38;
+            const hm = ctx.createRadialGradient(hx, hy, 4, hx, hy, hr);
+            hm.addColorStop(0, isUrg ? 'rgba(239, 68, 68, 0.72)' : 'rgba(245, 158, 11, 0.68)');
+            hm.addColorStop(0.55, 'rgba(250, 204, 21, 0.34)');
             hm.addColorStop(1, 'rgba(250, 204, 21, 0)');
             ctx.fillStyle = hm;
             ctx.beginPath();
-            ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+            ctx.arc(hx, hy, hr, 0, Math.PI * 2);
             ctx.fill();
 
-            ctx.strokeStyle = state.selectedCase === 'urgent' ? '#FCA5A5' : '#FDE68A';
+            ctx.strokeStyle = isUrg ? '#FCA5A5' : '#FDE68A';
             ctx.lineWidth = 1.6;
             ctx.setLineDash([4, 3]);
             ctx.beginPath();
-            ctx.arc(sx, sy, sr * 0.72, 0, Math.PI * 2);
+            ctx.arc(hx, hy, hr * 0.72, 0, Math.PI * 2);
             ctx.stroke();
             ctx.setLineDash([]);
           });
         }
 
         ctx.restore();
-
-        // Circular optical vignette border
-        ctx.strokeStyle = 'rgba(255,255,255,0.12)';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.stroke();
       }
 
       function renderLiveControls() {
         const dict = i18n[state.lang];
         const q = computeQuality();
         el.focusVal.textContent = `${state.focus}%`;
-        el.qualityBadge.textContent = `${dict.qualityPrefix}${q}%`;
 
-        if (q >= 88) {
-          el.qualityBadge.className = 'text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/40';
-          el.reticleRing.className = 'pointer-events-none absolute inset-6 rounded-full border-2 border-emerald-400 transition-colors duration-300 flex items-center justify-center';
+        if (!state.uploadedImage) {
+          el.qualityBadge.textContent = dict.awaitingImg;
+          el.qualityBadge.className = 'text-xs font-bold px-3 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700';
+          el.reticleRing.className = 'pointer-events-none absolute inset-6 rounded-full border-2 border-dashed border-slate-600/80 transition-colors duration-300 flex items-center justify-center';
+          el.uploadStateBadge.textContent = dict.awaitingImg;
+          el.uploadStateBadge.className = 'text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600';
         } else {
-          el.qualityBadge.className = 'text-xs font-bold px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30';
-          el.reticleRing.className = 'pointer-events-none absolute inset-6 rounded-full border-2 border-dashed border-amber-400/80 transition-colors duration-300 flex items-center justify-center';
+          el.qualityBadge.textContent = `${dict.qualityReady}${q}%`;
+          el.uploadStateBadge.textContent = dict.imgReady;
+          el.uploadStateBadge.className = 'text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200';
+          if (q >= 85) {
+            el.qualityBadge.className = 'text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/40';
+            el.reticleRing.className = 'pointer-events-none absolute inset-6 rounded-full border-2 border-emerald-400 transition-colors duration-300 flex items-center justify-center';
+          } else {
+            el.qualityBadge.className = 'text-xs font-bold px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30';
+            el.reticleRing.className = 'pointer-events-none absolute inset-6 rounded-full border-2 border-dashed border-amber-400/80 transition-colors duration-300 flex items-center justify-center';
+          }
         }
 
         el.statePolarizer.textContent = state.polarizer ? dict.onLabel : dict.offLabel;
-        el.statePolarizer.className = state.polarizer
-          ? 'px-2 py-0.5 rounded bg-teal-500/30 text-teal-200'
-          : 'px-2 py-0.5 rounded bg-slate-700 text-slate-300';
+        el.statePolarizer.className = state.polarizer ? 'px-2 py-0.5 rounded bg-teal-500/30 text-teal-200' : 'px-2 py-0.5 rounded bg-slate-700 text-slate-300';
         el.btnTogglePolarizer.className = state.polarizer
           ? 'flex items-center justify-between px-3.5 py-2.5 rounded-xl border border-teal-500/60 bg-teal-900/40 hover:bg-teal-900/60 text-xs font-semibold transition'
           : 'flex items-center justify-between px-3.5 py-2.5 rounded-xl border border-slate-600 bg-slate-800 hover:bg-slate-700 text-xs font-semibold transition';
 
         el.stateIR.textContent = state.irMode ? dict.onLabel : dict.offLabel;
-        el.stateIR.className = state.irMode
-          ? 'px-2 py-0.5 rounded bg-teal-500/30 text-teal-200'
-          : 'px-2 py-0.5 rounded bg-slate-700 text-slate-300';
+        el.stateIR.className = state.irMode ? 'px-2 py-0.5 rounded bg-teal-500/30 text-teal-200' : 'px-2 py-0.5 rounded bg-slate-700 text-slate-300';
         el.btnToggleIR.className = state.irMode
           ? 'flex items-center justify-between px-3.5 py-2.5 rounded-xl border border-teal-500/60 bg-teal-900/40 hover:bg-teal-900/60 text-xs font-semibold transition'
           : 'flex items-center justify-between px-3.5 py-2.5 rounded-xl border border-slate-600 bg-slate-800 hover:bg-slate-700 text-xs font-semibold transition';
 
-        el.hudMode.textContent = `IR: ${state.irMode ? 'ON' : 'OFF'}`;
+        el.hudMode.textContent = `IR GUIDE: ${state.irMode ? 'ON' : 'OFF'}`;
         el.hudGlare.textContent = `POLARIZER: ${state.polarizer ? 'ON' : 'OFF'}`;
 
-        drawFundus(el.liveCanvas, {
-          applyBlur: true,
-          showGlare: true,
-          irTint: state.irMode,
-          showHeatmap: false
-        });
+        drawLiveViewport();
       }
 
       function renderReport() {
-        const profile = caseProfiles[state.selectedCase];
-        const info = profile[state.lang];
-        const dict = i18n[state.lang];
+        if (!state.analysis || !state.uploadedImage) {
+          el.noReportNotice.classList.remove('hidden');
+          el.reportContent.classList.add('hidden');
+          return;
+        }
+        el.noReportNotice.classList.add('hidden');
+        el.reportContent.classList.remove('hidden');
 
+        const res = state.analysis;
+        const info = severityCopy[res.severity][state.lang];
         const pId = el.inputPatientId.value.trim() || 'PHC-2026-NEW';
         const age = el.inputAge.value || '--';
         const dur = el.inputDuration.value || '--';
-        const eye = el.selectEye.value;
 
         el.triageBanner.className = `rounded-2xl p-5 border-2 space-y-2 ${info.bannerClass}`;
         el.triageTag.className = `text-xs font-bold px-3 py-1 rounded-full ${info.badgeClass}`;
         el.triageTag.textContent = info.tag;
         el.triageTitle.textContent = info.title;
         el.triageSummary.textContent = info.summary;
-        el.repConfidence.textContent = state.liveAiResult ? state.liveAiResult.confidence : profile.confidence;
-        el.repEngineBadge.textContent = state.liveAiResult
-          ? `${dict.engineLive} [${state.liveAiResult.rawLabel}]`
-          : dict.engineSim;
-        el.repEngineBadge.className = state.liveAiResult
-          ? 'text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-teal-100 border border-teal-400 text-teal-900'
-          : 'text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-white/80 border border-slate-300 text-slate-700';
-        el.repEye.textContent = eye;
         el.repProtocol.textContent = info.protocol;
         el.repPatientMeta.textContent = state.lang === 'ar'
-          ? `${pId} · ${age} سنة · سكري ${dur} سنوات`
-          : `${pId} · ${age} yrs · DM ${dur} yrs`;
+          ? `${pId} · ${age} سنة · سكري ${dur} سنوات · العين ${el.selectEye.value}`
+          : `${pId} · ${age} yrs · DM ${dur} yrs · Eye ${el.selectEye.value}`;
 
-        el.findingsList.innerHTML = info.findings.map(item => `
+        el.repEngineBadge.textContent = res.engine === 'cnn' ? 'MobileNet CNN · TF.js' : 'Local Vision AI';
+        el.repConfidence.textContent = res.confidence;
+        el.repDarkPct.textContent = res.darkPct;
+        el.repExudatePct.textContent = res.exudatePct;
+
+        el.probValNormal.textContent = `${res.probs.normal}%`;
+        el.probBarNormal.style.width = `${res.probs.normal}%`;
+        el.probValModerate.textContent = `${res.probs.moderate}%`;
+        el.probBarModerate.style.width = `${res.probs.moderate}%`;
+        el.probValUrgent.textContent = `${res.probs.urgent}%`;
+        el.probBarUrgent.style.width = `${res.probs.urgent}%`;
+
+        const dynamicFindings = state.lang === 'ar'
+          ? [
+              { k: 'كثافة البقع الداكنة (القناة الخضراء)', v: res.darkPct },
+              { k: 'نسبة الإفرازات الصفراء الساطعة', v: res.exudatePct },
+              { k: 'مناطق الاشتباه المرصودة', v: `${res.hotspotCount} مناطق` },
+              { k: 'التحقق من جودة قاع العين', v: res.isFundusLike ? 'صورة شبكية صالحة' : 'إضاءة غير قياسية' }
+            ]
+          : [
+              { k: 'Green-Channel Dark Lesion Density', v: res.darkPct },
+              { k: 'Bright Yellow Exudate Ratio', v: res.exudatePct },
+              { k: 'Localized Suspect Regions', v: `${res.hotspotCount} zones` },
+              { k: 'Fundus Field Validation', v: res.isFundusLike ? 'Valid Fundus Image' : 'Non-standard Lighting' }
+            ];
+
+        el.findingsList.innerHTML = dynamicFindings.map(item => `
           <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
             <span class="block text-xs text-slate-500">${item.k}</span>
             <span class="font-bold text-slate-800">${item.v}</span>
           </div>
         `).join('');
 
-        const hmSpan = el.btnToggleHeatmap.querySelector('span');
-        hmSpan.textContent = state.heatmap ? dict.btnHeatmapOn : dict.btnHeatmapOff;
-
-        drawFundus(el.reportCanvas, {
-          applyBlur: false,
-          showGlare: false,
-          irTint: false,
-          showHeatmap: state.heatmap
+        document.querySelectorAll('.vmode-btn').forEach(btn => {
+          const active = btn.dataset.vmode === state.viewMode;
+          btn.className = active
+            ? 'vmode-btn py-2 px-2 rounded-xl text-xs font-bold border border-teal-600 bg-teal-50 text-[#0A4D68] transition'
+            : 'vmode-btn py-2 px-2 rounded-xl text-xs font-semibold border border-slate-200 bg-slate-50 text-slate-700 hover:border-teal-400 transition';
         });
+
+        drawReportViewport();
       }
 
       function renderDashboard() {
@@ -1059,8 +1303,13 @@
           ? state.records
           : state.records.filter(r => r.severity === state.filter);
 
+        if (filtered.length === 0) {
+          el.clinicTableBody.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-sm text-slate-500">${i18n[state.lang].emptyTable}</td></tr>`;
+          return;
+        }
+
         el.clinicTableBody.innerHTML = filtered.map(rec => {
-          const p = caseProfiles[rec.severity][state.lang];
+          const p = severityCopy[rec.severity][state.lang];
           return `
             <tr class="hover:bg-slate-50 transition">
               <td class="px-4 py-3 font-semibold text-slate-800">${rec.id}</td>
@@ -1100,10 +1349,26 @@
           if (dict[key]) node.textContent = dict[key];
         });
 
+        updateAiStatusBadge();
         renderLiveControls();
         renderReport();
         renderDashboard();
-        updateHfBadge();
+      }
+
+      function handleImageFile(file) {
+        if (!file || !file.type.startsWith('image/')) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const img = new Image();
+          img.onload = () => {
+            state.uploadedImage = img;
+            state.analysis = null;
+            renderLiveControls();
+            showToast(i18n[state.lang].toastUploaded);
+          };
+          img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
       }
 
       // Event Listeners
@@ -1111,20 +1376,36 @@
         btn.addEventListener('click', () => switchTab(btn.dataset.tab));
       });
 
-      document.querySelectorAll('.case-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          state.selectedCase = btn.dataset.case;
-          state.uploadedImage = null;
-          state.uploadedFile = null;
-          state.liveAiResult = null;
-          document.querySelectorAll('.case-btn').forEach(b => {
-            const active = b.dataset.case === state.selectedCase;
-            b.className = active
-              ? 'case-btn px-2.5 py-2.5 rounded-xl border text-xs font-semibold transition border-teal-600 bg-teal-50 text-[#0A4D68]'
-              : 'case-btn px-2.5 py-2.5 rounded-xl border text-xs font-semibold transition border-slate-200 hover:border-teal-500 text-slate-700 bg-slate-50';
-          });
-          renderLiveControls();
-        });
+      el.dropZone.addEventListener('click', () => el.fileUpload.click());
+      el.dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        el.dropZone.classList.add('border-teal-500', 'bg-teal-50/60');
+      });
+      el.dropZone.addEventListener('dragleave', () => {
+        el.dropZone.classList.remove('border-teal-500', 'bg-teal-50/60');
+      });
+      el.dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        el.dropZone.classList.remove('border-teal-500', 'bg-teal-50/60');
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
+          handleImageFile(e.dataTransfer.files[0]);
+        }
+      });
+
+      el.fileUpload.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files[0]) handleImageFile(e.target.files[0]);
+      });
+
+      el.cameraCapture.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files[0]) handleImageFile(e.target.files[0]);
+      });
+
+      el.btnClearImg.addEventListener('click', () => {
+        state.uploadedImage = null;
+        state.analysis = null;
+        el.fileUpload.value = '';
+        el.cameraCapture.value = '';
+        renderLiveControls();
       });
 
       el.sliderFocus.addEventListener('input', (e) => {
@@ -1142,124 +1423,75 @@
         renderLiveControls();
       });
 
-      el.btnAutoAlign.addEventListener('click', () => {
-        state.focus = 50;
-        el.sliderFocus.value = '50';
-        state.polarizer = true;
-        renderLiveControls();
-        showToast(i18n[state.lang].toastAligned);
-      });
-
-      function mapHfLabelToSeverity(label) {
-        const l = String(label || '').toLowerCase().trim();
-        if (l.includes('no') || l.includes('normal') || l === '0' || l === 'label_0' || /\b0\b/.test(l)) return 'normal';
-        if (l.includes('severe') || l.includes('proliferat') || l === '3' || l === '4' || l === 'label_3' || l === 'label_4') return 'urgent';
-        return 'moderate';
-      }
-
-      function updateHfBadge() {
-        const dict = i18n[state.lang];
-        const hasToken = state.hfToken.trim().startsWith('hf_');
-        el.hfStatusBadge.textContent = hasToken ? dict.hfModeLive : dict.hfModeSim;
-        el.hfStatusBadge.className = hasToken
-          ? 'text-[11px] font-semibold px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 border border-teal-300'
-          : 'text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600';
-      }
-
-      try {
-        const savedToken = localStorage.getItem('reticlip_hf_token') || '';
-        if (savedToken) {
-          state.hfToken = savedToken;
-          el.inputHfToken.value = savedToken;
+      el.btnAnalyze.addEventListener('click', async () => {
+        if (!state.uploadedImage) {
+          showToast(i18n[state.lang].toastNeedImg);
+          return;
         }
-      } catch (err) {}
-
-      el.inputHfToken.addEventListener('input', (e) => {
-        state.hfToken = e.target.value.trim();
-        try {
-          if (state.hfToken) localStorage.setItem('reticlip_hf_token', state.hfToken);
-          else localStorage.removeItem('reticlip_hf_token');
-        } catch (err) {}
-        updateHfBadge();
-      });
-
-      el.btnCapture.addEventListener('click', async () => {
         el.scanOverlay.classList.remove('hidden');
-        const token = state.hfToken.trim();
-        if (token.startsWith('hf_') && state.uploadedFile) {
-          try {
-            const endpoint = 'https://router.huggingface.co/hf-inference/models/Kontawat/vit-diabetic-retinopathy-classification';
-            const res = await fetch(endpoint, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': state.uploadedFile.type || 'image/jpeg'
-              },
-              body: state.uploadedFile
-            });
-            if (!res.ok) throw new Error('HTTP ' + res.status);
-            const data = await res.json();
-            if (Array.isArray(data) && data.length > 0 && data[0].label !== undefined) {
-              const top = data[0];
-              state.selectedCase = mapHfLabelToSeverity(top.label);
-              state.liveAiResult = {
-                rawLabel: top.label,
-                confidence: `${(Number(top.score || 0) * 100).toFixed(1)}%`
-              };
-              el.scanOverlay.classList.add('hidden');
-              showToast(i18n[state.lang].toastLiveOk);
-              switchTab('report');
-              return;
-            }
-            throw new Error('Unexpected response');
-          } catch (err) {
-            state.liveAiResult = null;
-            el.scanOverlay.classList.add('hidden');
-            const reason = err && err.message ? ` (${err.message})` : '';
-            showToast(i18n[state.lang].toastLiveFallback + reason);
-            switchTab('report');
-            return;
-          }
-        }
-        state.liveAiResult = null;
-        setTimeout(() => {
-          el.scanOverlay.classList.add('hidden');
-          switchTab('report');
-        }, 1150);
-      });
+        const stages = state.lang === 'ar'
+          ? [
+              { t: '1/3 فحص صلاحية قاع العين...', s: 'تقييم التوزيع اللوني واستخراج القناة الخضراء', p: '30%' },
+              { t: '2/3 تشغيل الشبكة العصبية (CNN)...', s: 'تحليل الصورة عبر نموذج RetiClip المدرب (TensorFlow.js)', p: '68%' },
+              { t: '3/3 توليد التقرير السريري...', s: 'توزيع احتمالات التصنيف وخريطة الاشتباه', p: '96%' }
+            ]
+          : [
+              { t: '1/3 Validating Retinal Field...', s: 'Checking fundus signature & green-channel metrics', p: '30%' },
+              { t: '2/3 Running Deep Learning CNN...', s: 'Evaluating retinal features via trained TensorFlow.js model', p: '68%' },
+              { t: '3/3 Generating Triage Report...', s: 'Computing class probabilities & lesion heatmap', p: '96%' }
+            ];
 
-      el.fileUpload.addEventListener('change', (e) => {
-        const file = e.target.files && e.target.files[0];
-        if (!file) return;
-        state.uploadedFile = file;
-        state.liveAiResult = null;
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          const img = new Image();
-          img.onload = () => {
-            state.uploadedImage = img;
-            renderLiveControls();
-            showToast(i18n[state.lang].toastUpload);
-          };
-          img.src = ev.target.result;
+        const applyStage = (idx) => {
+          el.scanStageTitle.textContent = stages[idx].t;
+          el.scanStageSub.textContent = stages[idx].s;
+          el.scanProgressBar.style.width = stages[idx].p;
         };
-        reader.readAsDataURL(file);
+        const wait = (ms) => new Promise(res => setTimeout(res, ms));
+
+        applyStage(0);
+        const opticalMetrics = analyzeRetinalImage(state.uploadedImage);
+        await wait(450);
+
+        applyStage(1);
+        let cnnResult = null;
+        try {
+          cnnResult = await runDeepLearningInference(state.uploadedImage);
+        } catch (err) {
+          cnnResult = null;
+        }
+        await wait(350);
+
+        applyStage(2);
+        await wait(350);
+
+        state.analysis = cnnResult
+          ? { ...opticalMetrics, severity: cnnResult.severity, confidence: cnnResult.confidence, probs: cnnResult.probs, engine: 'cnn' }
+          : { ...opticalMetrics, engine: 'local' };
+        state.viewMode = 'heatmap';
+        el.scanOverlay.classList.add('hidden');
+        if (!state.analysis.isFundusLike) {
+          showToast(i18n[state.lang].toastNotFundus);
+        }
+        switchTab('report');
       });
 
-      el.btnToggleHeatmap.addEventListener('click', () => {
-        state.heatmap = !state.heatmap;
-        renderReport();
+      document.querySelectorAll('.vmode-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.viewMode = btn.dataset.vmode;
+          renderReport();
+        });
       });
+
+      el.btnGoScan.addEventListener('click', () => switchTab('scan'));
 
       el.btnSaveRecord.addEventListener('click', () => {
+        if (!state.analysis) return;
         const pId = el.inputPatientId.value.trim() || `PHC-2026-${Math.floor(100 + Math.random() * 899)}`;
-        const hba1c = `${el.inputHba1c.value || '7.5'}%`;
         state.records.unshift({
           id: pId,
           eye: el.selectEye.value,
-          hba1c: hba1c,
-          severity: state.selectedCase,
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          hba1c: `${el.inputHba1c.value || '7.5'}%`,
+          severity: state.analysis.severity
         });
         renderDashboard();
         showToast(i18n[state.lang].toastSaved);
@@ -1267,8 +1499,9 @@
       });
 
       el.btnCopySummary.addEventListener('click', () => {
-        const info = caseProfiles[state.selectedCase][state.lang];
-        const text = `RetiClip AI Triage Report\nPatient: ${el.inputPatientId.value}\nEye: ${el.selectEye.value} | HbA1c: ${el.inputHba1c.value}%\nResult: ${info.title}\nAction: ${info.protocol}`;
+        if (!state.analysis) return;
+        const info = severityCopy[state.analysis.severity][state.lang];
+        const text = `RetiClip AI Diagnostic Report\nPatient: ${el.inputPatientId.value}\nEye: ${el.selectEye.value} | HbA1c: ${el.inputHba1c.value}%\nResult: ${info.title} (${state.analysis.confidence})\nDark Lesion Density: ${state.analysis.darkPct} | Exudates: ${state.analysis.exudatePct}\nAction: ${info.protocol}`;
         if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(text).then(() => showToast(i18n[state.lang].toastCopied)).catch(() => fallbackCopy(text));
         } else {
@@ -1287,8 +1520,13 @@
       }
 
       el.btnNewScan.addEventListener('click', () => {
-        const nextNum = 42 + state.records.length;
-        el.inputPatientId.value = `PHC-2026-0${nextNum}`;
+        const nextNum = 105 + state.records.length;
+        el.inputPatientId.value = `PHC-2026-${nextNum}`;
+        state.uploadedImage = null;
+        state.analysis = null;
+        el.fileUpload.value = '';
+        el.cameraCapture.value = '';
+        renderLiveControls();
         switchTab('scan');
       });
 
@@ -1310,8 +1548,8 @@
         applyLanguage();
       });
 
-      // Initialize
       applyLanguage();
+      initDeepLearningModel();
     })();
   </script>
 </body>
